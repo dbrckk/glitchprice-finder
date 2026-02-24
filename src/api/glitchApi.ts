@@ -2,51 +2,38 @@
 
 const API_URL = "https://deal-finder-backend-y9wb.onrender.com";
 
+export interface GlitchItem {
+  name: string;
+  url: string;
+  description?: string;
+  category: string;
+  savingsPercentage: number;
+  verificationStatus?: "idle" | "loading" | "available" | "unavailable";
+  verificationReason?: string;
+}
+
 /**
- * Fetch glitches for a specific category
+ * Fetch glitch items from backend
+ * @param category string, defaults to "all"
+ * @returns array of GlitchItem
  */
-export const fetchGlitches = async (category: string) => {
-  try {
-    const res = await fetch(`${API_URL}/glitches?category=${category}`);
-    if (!res.ok) throw new Error("Erreur lors de la récupération des glitches");
-    const data = await res.json();
-    return data.items || [];
-  } catch (err) {
-    console.error("fetchGlitches error:", err);
-    return [];
+export const fetchGlitches = async (category: string = "all"): Promise<GlitchItem[]> => {
+  const res = await fetch(`${API_URL}/glitches?category=${category}`);
+  if (!res.ok) {
+    throw new Error("Erreur lors de la récupération des glitches");
   }
+  return res.json();
 };
 
 /**
- * Verify a specific item URL
+ * Verify an item availability
+ * @param url string of the item
+ * @returns {status: "available" | "unavailable", reason?: string}
  */
-export const verifyItem = async (url: string) => {
-  try {
-    const res = await fetch(`${API_URL}/verify?url=${encodeURIComponent(url)}`);
-    if (!res.ok) throw new Error("Erreur lors de la vérification de l'item");
-    const data = await res.json();
-    // Return a normalized object with status and reason
-    return {
-      status: data.status || "unavailable",
-      reason: data.reason || "",
-    };
-  } catch (err) {
-    console.error("verifyItem error:", err);
-    return { status: "unavailable", reason: "Erreur réseau" };
+export const verifyItem = async (url: string): Promise<{ status: "available" | "unavailable"; reason?: string }> => {
+  const res = await fetch(`${API_URL}/verify?url=${encodeURIComponent(url)}`);
+  if (!res.ok) {
+    throw new Error("Erreur lors de la vérification de l'article");
   }
-};
-
-/**
- * Optional: fetch category info if your backend supports it
- */
-export const fetchCategoryInfo = async (category: string) => {
-  try {
-    const res = await fetch(`${API_URL}/categories/${category}`);
-    if (!res.ok) throw new Error("Erreur lors de la récupération des infos de catégorie");
-    const data = await res.json();
-    return data;
-  } catch (err) {
-    console.error("fetchCategoryInfo error:", err);
-    return null;
-  }
+  return res.json();
 };
