@@ -1,0 +1,40 @@
+/* Tailwind base styles */
+@tailwind base;
+
+/* Tailwind component styles */
+@tailwind components;
+
+/* Tailwind utility classes */
+@tailwind utilities;
+
+/* Custom theme overrides (optional) */
+:root {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Body styling */
+body {
+  @apply antialiased bg-[#f5f5f5] text-[#1a1a1a] font-sans;
+}
+
+/* Selection styling */
+::selection {
+  @apply bg-emerald-100 text-black;
+}
+
+/* Scrollbar styling (optional) */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-zinc-300 rounded;
+}
+::-webkit-scrollbar-track {
+  @apply bg-zinc-100;
+}
+
+/* Buttons common style override (optional) */
+button {
+  @apply transition-all duration-200;
+}
