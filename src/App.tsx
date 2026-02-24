@@ -1,144 +1,109 @@
 // src/App.tsx
-import { useState, useEffect } from "react";
-import { fetchGlitches, verifyItem, GlitchItem } from "./api/glitchApi";
+import { useState, useMemo } from "react";
+import { useGlitchItems } from "./hooks/useGlitchItems";
 
 export default function App() {
-  const [items, setItems] = useState<GlitchItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const { state, scanItems, verifySingleItem } = useGlitchItems();
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // Fetch glitches from backend
-  const handleScan = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const results = await fetchGlitches(selectedCategory);
-      // Add verificationStatus to each item
-      const itemsWithStatus = results.map((item) => ({
-        ...item,
-        verificationStatus: "idle" as GlitchItem["verificationStatus"],
-      }));
-      setItems(itemsWithStatus);
-    } catch (err) {
-      setError("Erreur lors du scan.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Verify a single item
-  const handleVerify = async (item: GlitchItem) => {
-    // Set item to loading
-    setItems((prev) =>
-      prev.map((i) =>
-        i.url === item.url ? { ...i, verificationStatus: "loading" } : i
-      )
-    );
-
-    try {
-      const res = await verifyItem(item.url);
-      setItems((prev) =>
-        prev.map((i) =>
-          i.url === item.url
-            ? { ...i, verificationStatus: res.status, verificationReason: res.reason }
-            : i
-        )
-      );
-    } catch {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.url === item.url
-            ? { ...i, verificationStatus: "unavailable", verificationReason: "Erreur vérification" }
-            : i
-        )
-      );
-    }
-  };
-
-  // Filtered items by category
-  const filteredItems = selectedCategory === "all"
-    ? items
-    : items.filter((i) => i.category === selectedCategory);
+  const filteredItems = useMemo(() => {
+    return selectedCategory === "all"
+      ? state.items
+      : state.items.filter((i) => i.category === selectedCategory);
+  }, [state.items, selectedCategory]);
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4">GlitchPrice Finder</h1>
+    <div className="p-6 min-h-screen bg-gray-50">
+      <h1 className="text-3xl font-bold mb-6">GlitchPrice Finder</h1>
 
       {/* Category selector */}
-      <div className="mb-4 flex gap-2">
+      <div className="flex gap-3 mb-6">
         {["all", "perfume", "electronics", "fashion"].map((cat) => (
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1 rounded ${
-              selectedCategory === cat ? "bg-black text-white" : "bg-gray-200"
+            className={`px-4 py-2 rounded ${
+              selectedCategory === cat
+                ? "bg-black text-white"
+                : "bg-gray-200 text-gray-700"
             }`}
           >
-            {cat}
+            {cat.toUpperCase()}
           </button>
         ))}
       </div>
 
       {/* Scan button */}
       <button
-        onClick={handleScan}
-        disabled={loading}
-        className="bg-black text-white px-4 py-2 rounded mb-4"
+        onClick={() => scanItems(selectedCategory)}
+        disabled={state.loading}
+        className="bg-black text-white px-6 py-3 rounded mb-4"
       >
-        {loading ? "Scan..." : "Lancer le Scan"}
+        {state.loading ? "Scan en cours..." : "Lancer le Scan"}
       </button>
 
       {/* Error */}
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {state.error && <p className="text-red-500 mb-4">{state.error}</p>}
 
-      {/* Results */}
-      <div className="space-y-4">
-        {filteredItems.map((item) => (
-          <div key={item.url} className="border p-4 rounded shadow-sm">
-            <h3 className="font-bold text-lg">{item.name}</h3>
-            <p>{item.description}</p>
-            <p>-{item.savingsPercentage}%</p>
+      {/* Last update */}
+      {state.lastUpdated && (
+        <p className="text-sm text-gray-500 mb-4">
+          Dernier scan: {state.lastUpdated.toLocaleTimeString()}
+        </p>
+      )}
 
-            {/* Verify button */}
-            <button
-              onClick={() => handleVerify(item)}
-              disabled={item.verificationStatus === "loading"}
-              className={`mt-2 px-3 py-1 rounded ${
-                item.verificationStatus === "available"
-                  ? "bg-green-500 text-white"
-                  : item.verificationStatus === "loading"
-                  ? "bg-yellow-400 text-black"
-                  : "bg-gray-200"
-              }`}
-            >
-              {item.verificationStatus === "loading"
-                ? "Vérification..."
-                : item.verificationStatus === "available"
-                ? "Confirmé en stock"
-                : "Vérifier"}
-            </button>
-
-            {/* Verification reason */}
-            {item.verificationStatus === "unavailable" && (
-              <p className="text-red-500 text-sm mt-1">{item.verificationReason}</p>
-            )}
-
-            {/* Buy link */}
-            <a
-              href={item.url}
-              target="_blank"
-              className="block mt-2 text-blue-500 underline"
-            >
-              Acheter
-            </a>
-          </div>
-        ))}
-
-        {filteredItems.length === 0 && !loading && (
+      {/* Items grid */}
+      <div className="grid gap-6">
+        {filteredItems.length === 0 && !state.loading && (
           <p className="text-gray-500">Aucun glitch trouvé pour cette catégorie.</p>
         )}
+
+        {filteredItems.map((item) => (
+          <div
+            key={item.url}
+            className="border rounded p-4 bg-white shadow-sm"
+          >
+            <h3 className="font-bold text-lg">{item.name}</h3>
+            <p className="text-gray-600">{item.description}</p>
+            <p className="font-bold text-green-600 mt-1">-{item.savingsPercentage}%</p>
+
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => verifySingleItem(item.url)}
+                disabled={item.verificationStatus === "loading"}
+                className={`px-3 py-1 rounded text-sm ${
+                  item.verificationStatus === "available"
+                    ? "bg-green-600 text-white"
+                    : item.verificationStatus === "loading"
+                    ? "bg-yellow-400 text-white animate-pulse"
+                    : "bg-gray-200 text-gray-700"
+                }`}
+              >
+                {item.verificationStatus === "loading"
+                  ? "Vérification..."
+                  : item.verificationStatus === "available"
+                  ? "Confirmé"
+                  : "Vérifier"}
+              </button>
+
+              <a
+                href={item.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 rounded bg-blue-600 text-white text-sm"
+              >
+                Acheter
+              </a>
+            </div>
+
+            {item.verificationReason && (
+              <p className="text-red-500 text-xs mt-1">
+                {item.verificationReason}
+              </p>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
-  }
+}
