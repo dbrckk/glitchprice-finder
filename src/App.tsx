@@ -51,52 +51,81 @@ export default function App() {
   }, [state.items, selectedCategory]);
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">GlitchPrice Finder</h1>
+    <div className="min-h-screen bg-gray-900 text-gray-100 p-6">
+      <h1 className="text-3xl font-bold mb-6 text-center">GlitchPrice Finder</h1>
 
-      <div className="mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="border px-2 py-1 rounded"
+          className="bg-gray-800 border border-gray-700 text-gray-100 px-3 py-2 rounded"
         >
           <option value="all">All Categories</option>
           <option value="perfume">Perfume</option>
           <option value="electronics">Electronics</option>
           <option value="clothing">Clothing</option>
         </select>
+
+        <button
+          onClick={handleScan}
+          disabled={state.loading}
+          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded"
+        >
+          {state.loading ? "Scanning..." : "Lancer le Scan"}
+        </button>
       </div>
 
-      <button
-        onClick={handleScan}
-        disabled={state.loading}
-        className="bg-black text-white px-4 py-2 rounded"
-      >
-        {state.loading ? "Scan..." : "Lancer le Scan"}
-      </button>
+      {state.error && (
+        <p className="text-red-500 mb-4 text-center">{state.error}</p>
+      )}
 
-      {state.error && <p className="text-red-500 mt-4">{state.error}</p>}
+      {state.lastUpdated && (
+        <p className="text-gray-400 mb-4 text-sm text-center">
+          Last updated: {state.lastUpdated.toLocaleTimeString()}
+        </p>
+      )}
 
-      <div className="mt-6 space-y-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+        {filteredItems.length === 0 && !state.loading && (
+          <p className="text-gray-400 col-span-full text-center">
+            No items found.
+          </p>
+        )}
+
         {filteredItems.map((item) => (
-          <div key={item.url} className="border p-4 rounded">
-            <h3 className="font-bold">{item.name}</h3>
-            <p>{item.description}</p>
-            <p>-{item.savingsPercentage}%</p>
+          <div
+            key={item.url}
+            className="bg-gray-800 p-4 rounded-lg shadow hover:shadow-lg transition-shadow duration-200"
+          >
+            <h3 className="font-bold text-lg">{item.name}</h3>
+            <p className="text-gray-300 mt-1">{item.description}</p>
+            <p className="text-green-400 font-semibold mt-1">
+              -{item.savingsPercentage}%
+            </p>
 
-            <button
-              onClick={() => handleVerify(item)}
-              className="mt-2 bg-gray-200 px-3 py-1 rounded"
-            >
-              {item.verificationStatus === "loading"
-                ? "Vérification..."
-                : "Vérifier"}
-            </button>
+            <div className="flex items-center gap-2 mt-3">
+              <button
+                onClick={() => handleVerify(item)}
+                className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-sm"
+              >
+                {item.verificationStatus === "loading"
+                  ? "Vérification..."
+                  : "Vérifier"}
+              </button>
 
-            {item.verificationStatus && item.verificationStatus !== "idle" && (
-              <p className="mt-1 text-sm">
-                Statut: {item.verificationStatus}{" "}
-                {item.verificationReason && `(${item.verificationReason})`}
+              {item.verificationStatus === "verified" && (
+                <span className="text-green-400 text-sm font-semibold">✅ Vérifié</span>
+              )}
+              {item.verificationStatus === "unavailable" && (
+                <span className="text-red-500 text-sm font-semibold">
+                  ❌ Indisponible
+                </span>
+              )}
+            </div>
+
+            {item.verificationReason && (
+              <p className="text-gray-400 text-xs mt-1">
+                {item.verificationReason}
               </p>
             )}
 
@@ -104,7 +133,7 @@ export default function App() {
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block mt-2 text-blue-500"
+              className="block mt-3 text-blue-400 hover:underline text-sm"
             >
               Acheter
             </a>
@@ -113,4 +142,4 @@ export default function App() {
       </div>
     </div>
   );
-}
+          }
