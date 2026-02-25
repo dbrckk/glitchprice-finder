@@ -1,36 +1,44 @@
-const API_URL = "https://deal-finder-backend-y9wb.onrender.com";
+const API_URL = "https://deal-finder-backend-y9wb.onrender.com"; // Keep your backend URL
 
-export async function fetchGlitches(category: string) {
-  try {
-    const res = await fetch(`${API_URL}/glitches?category=${category}`);
-    if (!res.ok) {
-      throw new Error("Erreur backend");
-    }
-    const data = await res.json();
-    return data.items; // IMPORTANT: return items array
-  } catch (err) {
-    console.error("fetchGlitches error:", err);
-    return [];
-  }
+export interface GlitchItem {
+  name: string;
+  description: string;
+  savingsPercentage: number;
+  discountedPrice: number;
+  nextBestPrice: {
+    price: number;
+    store: string;
+  };
+  url: string;
+  category: string;
+  verificationStatus?: "idle" | "loading" | "verified" | "unavailable";
+  verificationReason?: string;
 }
 
-export async function verifyItem(url: string) {
-  try {
-    const res = await fetch(`${API_URL}/verify`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ url }),
-    });
+export async function fetchGlitches(category: string): Promise<GlitchItem[]> {
+  const res = await fetch(`${API_URL}/glitches?category=${category}`);
 
-    if (!res.ok) {
-      throw new Error("Erreur vérification");
-    }
-
-    return await res.json(); // expected: {status: "verified" | "unavailable", reason?: string}
-  } catch (err) {
-    console.error("verifyItem error:", err);
-    return { status: "unavailable", reason: "Erreur vérification" };
+  if (!res.ok) {
+    throw new Error("Erreur backend");
   }
+
+  const data = await res.json();
+
+  return data.items; // Array of glitch items
+}
+
+export async function verifyItem(url: string): Promise<{ status: string; reason: string }> {
+  const res = await fetch(`${API_URL}/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!res.ok) {
+    throw new Error("Erreur vérification");
+  }
+
+  return await res.json(); // { status: "verified" | "unavailable", reason: string }
 }
