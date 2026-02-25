@@ -1,8 +1,6 @@
 import { useState, useMemo } from "react";
+import { fetchGlitches, verifyItem, GlitchItem } from "./glitchApi";
 import { useGlitchItems } from "./hooks/useGlitchItems";
-import { fetchGlitches, verifyItem } from "./api/glitchApi";
-
-const API_URL = "https://deal-finder-backend-y9wb.onrender.com";
 
 export default function App() {
   const { state, setItems, updateItem, setLoading, setError, setLastUpdated } = useGlitchItems();
@@ -13,7 +11,7 @@ export default function App() {
     setError("");
     try {
       const results = await fetchGlitches(selectedCategory);
-      const itemsWithStatus = results.map((item: any) => ({
+      const itemsWithStatus: GlitchItem[] = results.map((item) => ({
         ...item,
         verificationStatus: "idle",
       }));
@@ -26,12 +24,12 @@ export default function App() {
     }
   };
 
-  const handleVerify = async (item: any) => {
+  const handleVerify = async (item: GlitchItem) => {
     updateItem(item.url, { verificationStatus: "loading" });
     try {
       const res = await verifyItem(item.url);
       updateItem(item.url, {
-        verificationStatus: res.status,
+        verificationStatus: res.status as GlitchItem["verificationStatus"],
         verificationReason: res.reason,
       });
     } catch {
@@ -45,72 +43,72 @@ export default function App() {
   const filteredItems = useMemo(() => {
     return selectedCategory === "all"
       ? state.items
-      : state.items.filter(i => i.category === selectedCategory);
+      : state.items.filter((i) => i.category === selectedCategory);
   }, [state.items, selectedCategory]);
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
-      <h1 className="text-3xl font-bold mb-6 text-center">GlitchPrice Finder</h1>
+    <div className="p-6 max-w-3xl mx-auto">
+      <h1 className="text-3xl font-bold mb-4">GlitchPrice Finder</h1>
 
-      <div className="flex justify-center mb-4">
+      <div className="mb-4">
+        <label className="mr-2 font-semibold">Category:</label>
         <select
           value={selectedCategory}
           onChange={(e) => setSelectedCategory(e.target.value)}
-          className="border px-3 py-2 rounded mr-2"
+          className="border rounded px-2 py-1"
         >
-          <option value="all">All Categories</option>
+          <option value="all">All</option>
           <option value="perfume">Perfume</option>
           <option value="electronics">Electronics</option>
-          <option value="fashion">Fashion</option>
+          <option value="clothing">Clothing</option>
         </select>
-
-        <button
-          onClick={handleScan}
-          disabled={state.loading}
-          className="bg-black text-white px-4 py-2 rounded"
-        >
-          {state.loading ? "Scanning..." : "Scan"}
-        </button>
       </div>
 
-      {state.error && (
-        <p className="text-red-500 text-center mb-4">{state.error}</p>
-      )}
+      <button
+        onClick={handleScan}
+        disabled={state.loading}
+        className="bg-black text-white px-4 py-2 rounded mb-4"
+      >
+        {state.loading ? "Scan..." : "Lancer le Scan"}
+      </button>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {state.error && <p className="text-red-500 mb-4">{state.error}</p>}
+
+      <div className="space-y-4">
         {filteredItems.map((item) => (
-          <div key={item.url} className="bg-white shadow-md rounded p-4">
-            <h3 className="font-bold text-lg mb-1">{item.name}</h3>
-            <p className="text-sm text-gray-600 mb-1">{item.description}</p>
-            <p className="text-red-500 font-semibold mb-2">-{item.savingsPercentage}%</p>
+          <div key={item.url} className="border p-4 rounded shadow">
+            <h3 className="font-bold text-lg">{item.name}</h3>
+            <p>{item.description}</p>
+            <p className="text-green-600 font-semibold">-{item.savingsPercentage}%</p>
 
-            <div className="flex gap-2">
+            <div className="flex items-center space-x-2 mt-2">
               <button
                 onClick={() => handleVerify(item)}
-                className="bg-gray-200 px-3 py-1 rounded text-sm"
+                className="bg-gray-200 px-3 py-1 rounded"
               >
-                {item.verificationStatus === "loading" ? "Checking..." : "Verify"}
+                {item.verificationStatus === "loading"
+                  ? "Vérification..."
+                  : "Vérifier"}
               </button>
 
-              <a
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 text-sm underline"
-              >
-                Buy
-              </a>
+              {item.verificationStatus === "verified" && (
+                <span className="text-green-600">✅ Vérifié</span>
+              )}
+              {item.verificationStatus === "unavailable" && (
+                <span className="text-red-600">❌ Indisponible</span>
+              )}
             </div>
 
-            {item.verificationStatus && item.verificationStatus !== "idle" && (
-              <p className="text-xs mt-1 text-gray-500">
-                Status: {item.verificationStatus}
-                {item.verificationReason ? ` (${item.verificationReason})` : ""}
-              </p>
-            )}
+            <a
+              href={item.url}
+              target="_blank"
+              className="block mt-2 text-blue-500 underline"
+            >
+              Acheter
+            </a>
           </div>
         ))}
       </div>
     </div>
   );
-}
+      }
