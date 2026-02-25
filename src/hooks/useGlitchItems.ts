@@ -1,29 +1,26 @@
 import { useState } from "react";
 
-export type GlitchItem = {
+export interface GlitchItem {
   name: string;
   description: string;
   savingsPercentage: number;
   discountedPrice?: number;
-  nextBestPrice?: {
-    price: number;
-    store: string;
-  };
+  nextBestPrice?: { price: number; store: string };
   url: string;
   category: string;
   verificationStatus?: "idle" | "loading" | "verified" | "unavailable";
   verificationReason?: string;
-};
+}
 
-type State = {
+interface GlitchState {
   items: GlitchItem[];
   loading: boolean;
   error: string;
   lastUpdated?: Date;
-};
+}
 
 export function useGlitchItems() {
-  const [state, setState] = useState<State>({
+  const [state, setState] = useState<GlitchState>({
     items: [],
     loading: false,
     error: "",
@@ -55,5 +52,12 @@ export function useGlitchItems() {
     setState((prev) => ({ ...prev, lastUpdated: date }));
   };
 
-  return { state, setItems, updateItem, setLoading, setError, setLastUpdated };
+  return {
+    state,
+    setItems,
+    updateItem,
+    setLoading,
+    setError,
+    setLastUpdated,
+  };
 }
