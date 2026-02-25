@@ -1,22 +1,11 @@
 import { useState } from "react";
-
-export interface GlitchItem {
-  name: string;
-  description: string;
-  savingsPercentage: number;
-  discountedPrice?: number;
-  nextBestPrice?: { price: number; store: string };
-  url: string;
-  category: string;
-  verificationStatus?: "idle" | "loading" | "verified" | "unavailable";
-  verificationReason?: string;
-}
+import { GlitchItem } from "../api/glitchApi";
 
 interface GlitchState {
   items: GlitchItem[];
   loading: boolean;
   error: string;
-  lastUpdated?: Date;
+  lastUpdated: Date | null;
 }
 
 export function useGlitchItems() {
@@ -24,40 +13,28 @@ export function useGlitchItems() {
     items: [],
     loading: false,
     error: "",
-    lastUpdated: undefined,
+    lastUpdated: null,
   });
 
-  const setItems = (items: GlitchItem[]) => {
-    setState((prev) => ({ ...prev, items }));
-  };
+  const setItems = (items: GlitchItem[]) =>
+    setState((s) => ({ ...s, items }));
 
-  const updateItem = (url: string, updates: Partial<GlitchItem>) => {
-    setState((prev) => ({
-      ...prev,
-      items: prev.items.map((item) =>
+  const updateItem = (url: string, updates: Partial<GlitchItem>) =>
+    setState((s) => ({
+      ...s,
+      items: s.items.map((item) =>
         item.url === url ? { ...item, ...updates } : item
       ),
     }));
-  };
 
-  const setLoading = (loading: boolean) => {
-    setState((prev) => ({ ...prev, loading }));
-  };
+  const setLoading = (loading: boolean) =>
+    setState((s) => ({ ...s, loading }));
 
-  const setError = (error: string) => {
-    setState((prev) => ({ ...prev, error }));
-  };
+  const setError = (error: string) =>
+    setState((s) => ({ ...s, error }));
 
-  const setLastUpdated = (date: Date) => {
-    setState((prev) => ({ ...prev, lastUpdated: date }));
-  };
+  const setLastUpdated = (date: Date) =>
+    setState((s) => ({ ...s, lastUpdated: date }));
 
-  return {
-    state,
-    setItems,
-    updateItem,
-    setLoading,
-    setError,
-    setLastUpdated,
-  };
+  return { state, setItems, updateItem, setLoading, setError, setLastUpdated };
 }
