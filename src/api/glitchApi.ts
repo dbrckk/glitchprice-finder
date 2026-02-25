@@ -12,12 +12,9 @@ export interface GlitchItem {
 
 const API_URL = "https://deal-finder-backend-y9wb.onrender.com";
 
-export async function fetchGlitches(category: string): Promise<GlitchItem[]> {
-  const url =
-    category === "all"
-      ? `${API_URL}/glitches`
-      : `${API_URL}/glitches?category=${category}`;
-  const res = await fetch(url);
+export async function searchGlitchItems(category: string, keyword: string, website: string): Promise<GlitchItem[]> {
+  // Returns items from one website for one keyword
+  const res = await fetch(`${API_URL}/search?category=${category}&keyword=${keyword}&website=${website}`);
   if (!res.ok) throw new Error("Erreur backend");
   const data = await res.json();
   return data.items;
@@ -30,5 +27,5 @@ export async function verifyItem(url: string) {
     body: JSON.stringify({ url }),
   });
   if (!res.ok) throw new Error("Erreur vérification");
-  return await res.json();
+  return await res.json(); // { status: "verified" | "unavailable", reason: string }
 }
