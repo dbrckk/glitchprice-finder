@@ -7,7 +7,6 @@ export default function App() {
     useGlitchItems();
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  // Fetch glitches from backend
   const handleScan = async () => {
     setLoading(true);
     setError("");
@@ -26,8 +25,7 @@ export default function App() {
     }
   };
 
-  // Verify a single item
-  const handleVerify = async (item: GlitchItem & { verificationStatus?: string }) => {
+  const handleVerify = async (item: GlitchItem) => {
     updateItem(item.url, { verificationStatus: "loading" });
     try {
       const res = await verifyItem(item.url);
@@ -43,7 +41,6 @@ export default function App() {
     }
   };
 
-  // Filter items by category
   const filteredItems = useMemo(() => {
     return selectedCategory === "all"
       ? state.items
@@ -142,4 +139,4 @@ export default function App() {
       </div>
     </div>
   );
-          }
+        }
