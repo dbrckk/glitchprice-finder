@@ -17,17 +17,21 @@ type Item = {
 
 export default function App() {
   const [items, setItems] = useState<Item[]>([]);
+  const [category, setCategory] = useState("general");
   const [progress, setProgress] = useState({ keyword: "", count: 0, finished: false });
 
-  const startSearch = (category: string = "general") => {
-    const eventSource = new EventSource(`https://glitch-price-backend.onrender.com/search_stream?category=${category}`);
+  const startSearch = (selectedCategory: string) => {
+    setItems([]);
+    setProgress({ keyword: "", count: 0, finished: false });
+    const eventSource = new EventSource(
+      `https://glitch-price-backend.onrender.com/search_stream?category=${selectedCategory}`
+    );
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data);
 
       if (data.item) {
         setItems((prev) => {
-          // Always keep max 5 items
           const newItems = [...prev, data.item];
           return newItems.slice(0, 5);
         });
@@ -42,17 +46,32 @@ export default function App() {
   };
 
   useEffect(() => {
-    startSearch("general");
-  }, []);
+    startSearch(category);
+  }, [category]);
 
   return (
     <div className="app-container">
       <h1>Glitch Price Finder</h1>
 
+      {/* Category selection */}
+      <div className="category-selector">
+        {["general", "tech", "nearfree", "forher"].map((cat) => (
+          <button
+            key={cat}
+            className={cat === category ? "selected" : ""}
+            onClick={() => setCategory(cat)}
+          >
+            {cat.charAt(0).toUpperCase() + cat.slice(1)}
+          </button>
+        ))}
+      </div>
+
       {/* Progress Bar */}
       <div className="progress-bar">
         <div className="progress-info">
-          {progress.finished ? "Search Complete!" : `Searching "${progress.keyword}" (${progress.count}/5)` }
+          {progress.finished
+            ? "Search Complete!"
+            : `Searching "${progress.keyword}" (${progress.count}/5)`}
         </div>
         <div className="progress-line" style={{ width: `${(progress.count / 5) * 100}%` }}></div>
       </div>
@@ -60,10 +79,7 @@ export default function App() {
       {/* Items List */}
       <div className="items-list">
         {items.map((item, idx) => (
-          <div
-            key={idx}
-            className={`item-card ${item.available ? "available" : "verifying"}`}
-          >
+          <div key={idx} className={`item-card ${item.available ? "available" : "verifying"}`}>
             <a href={item.buy_link} target="_blank" rel="noopener noreferrer">
               <h2>{item.title}</h2>
             </a>
