@@ -1,179 +1,125 @@
-import { useState, useEffect } from "react";
-import { useGlitchItems } from "./hooks/useGlitchItems";
-import { GlitchItem, searchGlitchItems, verifyItem } from "./api/glitchApi";
+import { useEffect, useState } from "react";
 
-const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  general: ["montre", "sac", "bague", "chaussures", "bijoux", "perfume", "tech"],
-  outfit: ["sac", "chaussures", "vetement"],
-  tech: ["smartphone", "laptop", "casque", "montre connectée"],
-  jewelry_perfume: ["bague", "collier", "bracelet", "parfum"],
-  points_card: ["carte cadeau", "points bonus"],
-  huge_saving: ["offre", "réduction", "promotion"],
-  near_free: ["bon plan", "prix minime", "quasi gratuit"],
-  gift_for_her: ["sac", "chaussures", "bijoux", "lingerie"],
+type Item = {
+  title: string;
+  price: number;
+  old_price: number;
+  discount: number;
+  money_saved: number;
+  website: string;
+  buy_link: string;
+  available?: boolean;
 };
 
-const WEBSITES = [
-  "site1.com","site2.com","site3.com","site4.com","site5.com",
-  "site6.com","site7.com","site8.com","site9.com","site10.com",
-  "site11.com","site12.com","site13.com","site14.com","site15.com",
-  "site16.com","site17.com","site18.com","site19.com","site20.com",
-  "site21.com","site22.com","site23.com","site24.com","site25.com",
-  "site26.com","site27.com","site28.com","site29.com","site30.com",
-  "site31.com","site32.com","site33.com","site34.com","site35.com",
-  "site36.com","site37.com","site38.com","site39.com","site40.com",
-];
-
 export default function App() {
-  const { state, setItems, addOrReplaceItem, updateItem, setLoading, setError, setLastUpdated, setProgress } =
-    useGlitchItems();
-  const [selectedCategory, setSelectedCategory] = useState("general");
+  const [items, setItems] = useState<Item[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("Idle");
+  const [category, setCategory] = useState("general");
 
-  const performSearch = async () => {
-    setLoading(true);
-    setError("");
+  const categories = [
+    "general",
+    "tech",
+    "outfit",
+    "jewelry",
+    "nearfree",
+    "hugesaving",
+    "forher",
+  ];
+
+  const startSearch = () => {
     setItems([]);
-    setLastUpdated(null);
+    setProgress(0);
+    setStatus("Searching...");
 
-    const keywords = CATEGORY_KEYWORDS[selectedCategory] || ["montre"];
-    try {
-      for (const keyword of keywords) {
-        for (const website of WEBSITES) {
-          setProgress(`Searching on ${website} with "${keyword}"`);
-          const items = await searchGlitchItems(selectedCategory, keyword, website);
+    const evtSource = new EventSource(
+      `https://glitchprice-finder-2oxjrj3s6-dbrckks-projects.vercel.app/search_stream?category=${category}`
+    );
 
-          for (const item of items) {
-            item.verificationStatus = "loading";
-            addOrReplaceItem(item);
+    evtSource.onmessage = (e) => {
+      const data = JSON.parse(e.data);
 
-            // Auto verify
-            verifyItem(item.url)
-              .then((res) => {
-                if (res.status === "verified") updateItem(item.url, { verificationStatus: "verified", verificationReason: res.reason });
-                else {
-                  updateItem(item.url, { verificationStatus: "unavailable" });
-                  performReplacement(item); // replace immediately
-                }
-              })
-              .catch(() => {
-                updateItem(item.url, { verificationStatus: "unavailable" });
-                performReplacement(item);
-              });
-          }
-
-          // Stop searching if we already have 5 verified items
-          const verifiedCount = state.items.filter(i => i.verificationStatus === "verified").length;
-          if (verifiedCount >= 5) return;
-        }
+      if (data.finished) {
+        setStatus("Finished");
+        evtSource.close();
+      } else if (data.item) {
+        setItems((prev) => {
+          const newItems = [...prev, data.item];
+          return newItems.slice(0, 5);
+        });
+        setProgress(data.progress);
       }
-    } catch {
-      setError("Erreur lors du scan.");
-    } finally {
-      setLoading(false);
-      setLastUpdated(new Date());
-      setProgress("");
-    }
-  };
+    };
 
-  const performReplacement = async (oldItem: GlitchItem) => {
-    // Try to find a new item for the slot
-    const keywords = CATEGORY_KEYWORDS[selectedCategory] || ["montre"];
-    for (const keyword of keywords) {
-      for (const website of WEBSITES) {
-        const items = await searchGlitchItems(selectedCategory, keyword, website);
-        for (const item of items) {
-          item.verificationStatus = "loading";
-          addOrReplaceItem(item);
-
-          verifyItem(item.url)
-            .then((res) => {
-              if (res.status === "verified") updateItem(item.url, { verificationStatus: "verified", verificationReason: res.reason });
-              else updateItem(item.url, { verificationStatus: "unavailable" });
-            })
-            .catch(() => updateItem(item.url, { verificationStatus: "unavailable" }));
-
-          const verifiedCount = state.items.filter(i => i.verificationStatus === "verified").length;
-          if (verifiedCount >= 5) return;
-        }
-      }
-    }
+    evtSource.onerror = () => {
+      setStatus("Error or Connection Closed");
+      evtSource.close();
+    };
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 p-6">
-      <h1 className="text-3xl font-bold mb-6 text-center">GlitchPrice Finder</h1>
+    <div className="min-h-screen bg-gray-50 p-6 font-sans">
+      <h1 className="text-3xl font-bold mb-4">Glitch Price Finder</h1>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4 gap-2">
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="bg-gray-800 border border-gray-700 text-gray-100 px-3 py-2 rounded"
-        >
-          {Object.keys(CATEGORY_KEYWORDS).map(cat => (
-            <option key={cat} value={cat}>{cat.replace("_", " ")}</option>
-          ))}
-        </select>
-
-        <button
-          onClick={performSearch}
-          disabled={state.loading}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded"
-        >
-          {state.loading ? "Scanning..." : "Lancer le Scan"}
-        </button>
+      {/* Category selector */}
+      <div className="mb-4 flex gap-2 flex-wrap">
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            className={`px-4 py-2 rounded ${
+              cat === category
+                ? "bg-purple-600 text-white"
+                : "bg-gray-200 hover:bg-gray-300"
+            }`}
+            onClick={() => setCategory(cat)}
+          >
+            {cat}
+          </button>
+        ))}
       </div>
 
-      {state.progress && (
-        <p className="text-purple-400 mb-4 text-center">{state.progress}</p>
-      )}
+      <button
+        onClick={startSearch}
+        className="mb-4 px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+      >
+        Start Search
+      </button>
 
-      {state.error && (
-        <p className="text-red-500 mb-4 text-center">{state.error}</p>
-      )}
-
-      {state.lastUpdated && (
-        <p className="text-gray-400 mb-4 text-sm text-center">
-          Last updated: {state.lastUpdated.toLocaleTimeString()}
+      <div className="mb-4">
+        <p>Status: {status}</p>
+        <p>
+          Found {items.length} / 5 items {progress > 0 && `- Progress: ${progress}`}
         </p>
-      )}
+      </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-        {state.items.map((item) => (
+      {/* Items */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {items.map((item, idx) => (
           <div
-            key={item.url}
-            className={`p-4 rounded-lg shadow transition-shadow duration-200 ${
-              item.verificationStatus === "verified" ? "bg-green-800" :
-              item.verificationStatus === "loading" ? "bg-purple-700 animate-pulse" :
-              "bg-gray-800"
+            key={idx}
+            className={`p-4 rounded shadow ${
+              item.available ? "bg-green-100" : "bg-purple-200 animate-pulse"
             }`}
           >
-            <h3 className="font-bold text-lg">{item.name}</h3>
-            <p className="text-gray-300 mt-1">{item.description}</p>
-            <p className="text-green-400 font-semibold mt-1">
-              -{item.savingsPercentage}%
+            <h2 className="font-semibold text-lg">{item.title}</h2>
+            <p>
+              Price: €{item.price}{" "}
+              <span className="line-through text-gray-500">€{item.old_price}</span>
             </p>
-
-            {item.nextBestPrice && (
-              <p className="text-gray-400 text-sm">
-                Next best: {item.nextBestPrice.price}€ ({item.nextBestPrice.store})
-              </p>
-            )}
-
-            {item.verificationReason && (
-              <p className="text-gray-400 text-xs mt-1">{item.verificationReason}</p>
-            )}
-
+            <p>
+              Discount: {item.discount}% | Saved: €{item.money_saved}
+            </p>
+            <p>Website: {item.website}</p>
             <a
-              href={item.url}
+              href={item.buy_link}
               target="_blank"
-              rel="noopener noreferrer"
-              className="block mt-3 text-blue-400 hover:underline text-sm"
+              className="text-blue-600 hover:underline"
             >
-              Acheter
+              Buy Now
             </a>
           </div>
         ))}
       </div>
     </div>
   );
-          }
+}
