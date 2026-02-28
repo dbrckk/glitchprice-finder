@@ -1,3 +1,88 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f8f8f8;
+  color: #333;
+  margin: 0;
+  padding: 0;
+}
+
+.app-container {
+  max-width: 900px;
+  margin: auto;
+  padding: 20px;
+}
+
+h1 {
+  text-align: center;
+  color: #4b0082;
+}
+
+.progress-bar {
+  margin: 20px 0;
+  background-color: #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.progress-info {
+  padding: 5px 10px;
+  font-size: 14px;
+}
+
+.progress-line {
+  height: 8px;
+  background-color: #8a2be2;
+  transition: width 0.5s ease;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.item-card {
+  background-color: #fff;
+  padding: 15px;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: background-color 0.5s ease, transform 0.3s ease;
+}
+
+.item-card.verifying {
+  background-color: #dda0dd; /* purple while verifying */
+  animation: pulse 1s infinite;
+}
+
+.item-card.available {
+  background-color: #d0f0c0; /* green when available */
+}
+
+.item-card:hover {
+  transform: translateY(-3px);
+}
+
+.price-info {
+  margin-top: 5px;
+}
+
+.price {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.old-price {
+  text-decoration: line-through;
+  color: #888;
+}
+
+.discount-info, .coupon, .cashback, .website {
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.8; }
+  50% { opacity: 1; }
+  100% { opacity: 0.8; }
+}
