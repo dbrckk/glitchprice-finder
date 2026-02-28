@@ -1,101 +1,222 @@
-import React, { useState, useEffect } from "react";
-import "./styles/index.css";
+import React, { useState, useRef } from "react";
 
 type Item = {
   title: string;
   price: number;
   old_price: number;
   discount: number;
-  coupon: number | null;
-  cashback: number | null;
   money_saved: number;
-  score: number;
   website: string;
   buy_link: string;
-  available?: boolean;
 };
+
+const BACKEND_URL = "https://glitchprice-backend.onrender.com";
 
 export default function App() {
   const [items, setItems] = useState<Item[]>([]);
-  const [category, setCategory] = useState("general");
-  const [progress, setProgress] = useState({ keyword: "", count: 0, finished: false });
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("Idle");
+  const eventSourceRef = useRef<EventSource | null>(null);
 
-  const startSearch = (selectedCategory: string) => {
+  const startSearch = (category: string) => {
     setItems([]);
-    setProgress({ keyword: "", count: 0, finished: false });
-    const eventSource = new EventSource(
-      `https://glitch-price-backend.onrender.com/search_stream?category=${selectedCategory}`
+    setLoading(true);
+    setStatus("Starting search...");
+
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
+    const es = new EventSource(
+      `${BACKEND_URL}/search_stream?category=${category}`
     );
 
-    eventSource.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+    eventSourceRef.current = es;
 
-      if (data.item) {
-        setItems((prev) => {
-          const newItems = [...prev, data.item];
-          return newItems.slice(0, 5);
-        });
-        setProgress({ keyword: data.keyword, count: data.progress, finished: false });
-      }
+    es.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
 
-      if (data.finished) {
-        setProgress((prev) => ({ ...prev, finished: true }));
-        eventSource.close();
+        if (data.finished) {
+          setLoading(false);
+          setStatus("Search completed");
+          es.close();
+          return;
+        }
+
+        if (data.item) {
+          setItems((prev) => {
+            const updated = [...prev, data.item];
+
+            updated.sort(
+              (a, b) =>
+                b.money_saved + b.discount - (a.money_saved + a.discount)
+            );
+
+            return updated.slice(0, 5);
+          });
+
+          setStatus("Finding best glitch prices...");
+        }
+      } catch (e) {
+        console.error("Error parsing SSE", e);
       }
+    };
+
+    es.onerror = () => {
+      setLoading(false);
+      setStatus("Connection closed or error");
+      es.close();
     };
   };
 
-  useEffect(() => {
-    startSearch(category);
-  }, [category]);
-
   return (
-    <div className="app-container">
-      <h1>Glitch Price Finder</h1>
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#f3f6f9",
+        padding: "40px",
+        fontFamily: "Arial, sans-serif",
+      }}
+    >
+      <h1 style={{ textAlign: "center", color: "#333" }}>
+        🔥 Glitch Price Finder
+      </h1>
 
-      {/* Category selection */}
-      <div className="category-selector">
-        {["general", "tech", "nearfree", "forher"].map((cat) => (
-          <button
-            key={cat}
-            className={cat === category ? "selected" : ""}
-            onClick={() => setCategory(cat)}
-          >
-            {cat.charAt(0).toUpperCase() + cat.slice(1)}
-          </button>
-        ))}
+      <div style={{ textAlign: "center", marginBottom: "30px" }}>
+        <button
+          onClick={() => startSearch("general")}
+          style={buttonStyle}
+        >
+          General
+        </button>
+        <button
+          onClick={() => startSearch("tech")}
+          style={buttonStyle}
+        >
+          Tech
+        </button>
+        <button
+          onClick={() => startSearch("nearfree")}
+          style={buttonStyle}
+        >
+          Near Free
+        </button>
+        <button
+          onClick={() => startSearch("forher")}
+          style={buttonStyle}
+        >
+          For Her
+        </button>
       </div>
 
-      {/* Progress Bar */}
-      <div className="progress-bar">
-        <div className="progress-info">
-          {progress.finished
-            ? "Search Complete!"
-            : `Searching "${progress.keyword}" (${progress.count}/5)`}
+      <p style={{ textAlign: "center", color: "#666" }}>{status}</p>
+
+      {loading && (
+        <div style={{ textAlign: "center", marginBottom: 20 }}>
+          <div className="loader" />
         </div>
-        <div className="progress-line" style={{ width: `${(progress.count / 5) * 100}%` }}></div>
-      </div>
+      )}
 
-      {/* Items List */}
-      <div className="items-list">
-        {items.map((item, idx) => (
-          <div key={idx} className={`item-card ${item.available ? "available" : "verifying"}`}>
-            <a href={item.buy_link} target="_blank" rel="noopener noreferrer">
-              <h2>{item.title}</h2>
+      <div
+        style={{
+          maxWidth: 900,
+          margin: "0 auto",
+          display: "grid",
+          gap: 20,
+        }}
+      >
+        {items.map((item, index) => (
+          <div
+            key={index}
+            style={{
+              background: "#e8f8f1",
+              borderRadius: 12,
+              padding: 20,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.05)",
+              border: "2px solid #2ecc71",
+              animation: "fadeIn 0.5s ease",
+            }}
+          >
+            <h3 style={{ margin: 0 }}>{item.title}</h3>
+            <p style={{ margin: "8px 0" }}>
+              💰 {item.price}€{" "}
+              {item.old_price > item.price && (
+                <span
+                  style={{
+                    textDecoration: "line-through",
+                    marginLeft: 10,
+                    color: "#888",
+                  }}
+                >
+                  {item.old_price}€
+                </span>
+              )}
+            </p>
+
+            {item.discount > 0 && (
+              <p style={{ color: "#27ae60", fontWeight: "bold" }}>
+                🔥 {item.discount}% OFF — Save {item.money_saved}€
+              </p>
+            )}
+
+            <p style={{ fontSize: 14, color: "#555" }}>
+              Website: {item.website}
+            </p>
+
+            <a
+              href={item.buy_link}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-block",
+                marginTop: 10,
+                padding: "10px 20px",
+                background: "#2ecc71",
+                color: "white",
+                borderRadius: 8,
+                textDecoration: "none",
+                fontWeight: "bold",
+              }}
+            >
+              Buy Now
             </a>
-            <div className="price-info">
-              <span className="price">€{item.price}</span>
-              {item.old_price && <span className="old-price">€{item.old_price}</span>}
-            </div>
-            <div className="discount-info">
-              Discount: {item.discount}% | Saved: €{item.money_saved}
-            </div>
-            {item.coupon && <div className="coupon">Coupon: {item.coupon}%</div>}
-            {item.cashback && <div className="cashback">Cashback: €{item.cashback}</div>}
-            <div className="website">{item.website}</div>
           </div>
         ))}
       </div>
+
+      <style>{`
+        .loader {
+          border: 6px solid #f3f3f3;
+          border-top: 6px solid #9b59b6;
+          border-radius: 50%;
+          width: 40px;
+          height: 40px;
+          animation: spin 1s linear infinite;
+          margin: auto;
+        }
+
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
+
+const buttonStyle: React.CSSProperties = {
+  margin: "0 8px",
+  padding: "10px 16px",
+  background: "#9b59b6",
+  color: "white",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer",
+  fontWeight: "bold",
+};
