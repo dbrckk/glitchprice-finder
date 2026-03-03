@@ -1,68 +1,131 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 
-type Item = {
+const API_URL = "https://YOUR-RENDER-URL.onrender.com"; // ← REPLACE with your real backend URL
+
+interface ScanResult {
+  url: string;
+  status: number | string;
   title: string;
-  price: number;
-  old_price: number;
-  discount: number;
-  money_saved: number;
-  website: string;
-  buy_link: string;
-};
+}
 
-const BACKEND_URL = "https://glitchprice-backend.onrender.com";
-
-export default function App() {
-  const [items, setItems] = useState<Item[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState("Idle");
+function App() {
+  const [websitesInput, setWebsitesInput] = useState("");
+  const [results, setResults] = useState<ScanResult[]>([]);
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState("");
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const startScan = async () => {
-    setItems([]);
-    setLoading(true);
-    setStatus("Starting scan...");
+    const websites = websitesInput
+      .split("\n")
+      .map((w) => w.trim())
+      .filter((w) => w !== "");
 
-    const start = await fetch(`${BACKEND_URL}/start_scan`, {
-      method: "POST",
-    });
+    if (websites.length === 0) {
+      alert("Please enter at least one website.");
+      return;
+    }
 
-    const data = await start.json();
-    const jobId = data.job_id;
+    setResults([]);
+    setProgress(0);
+    setStatus("Starting...");
 
-    const interval = setInterval(async () => {
-      const res = await fetch(`${BACKEND_URL}/scan_status/${jobId}`);
-      const result = await res.json();
+    try {
+      const response = await fetch(`${API_URL}/start-scan`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ websites }),
+      });
 
-      setItems(result.items || []);
+      const data = await response.json();
 
-      if (result.finished) {
-        clearInterval(interval);
-        setLoading(false);
-        setStatus("Scan finished");
-      } else {
-        setStatus("Scanning websites...");
+      if (!data.job_id) {
+        alert("Failed to start scan.");
+        return;
       }
-    }, 3000);
+
+      const jobId = data.job_id;
+
+      // Start polling every 3 seconds
+      pollingRef.current = setInterval(async () => {
+        const statusResponse = await fetch(
+          `${API_URL}/status/${jobId}`
+        );
+
+        const statusData = await statusResponse.json();
+
+        if (statusData.error) {
+          setStatus("Error");
+          clearInterval(pollingRef.current!);
+          return;
+        }
+
+        setProgress(statusData.progress);
+        setResults(statusData.results);
+        setStatus(statusData.status);
+
+        if (statusData.status === "finished") {
+          clearInterval(pollingRef.current!);
+          setStatus("Finished ✅");
+        }
+      }, 3000);
+
+    } catch (error) {
+      console.error(error);
+      alert("Error connecting to backend.");
+    }
   };
 
   return (
     <div style={{ padding: 40, fontFamily: "Arial" }}>
-      <h1>🔥 Glitch Price Finder</h1>
+      <h1>Website Scanner</h1>
 
-      <button onClick={startScan} disabled={loading}>
-        {loading ? "Scanning..." : "Start Scan"}
+      <textarea
+        rows={10}
+        style={{ width: "100%", marginBottom: 20 }}
+        placeholder="Enter one website per line"
+        value={websitesInput}
+        onChange={(e) => setWebsitesInput(e.target.value)}
+      />
+
+      <button onClick={startScan} style={{ padding: 10, fontSize: 16 }}>
+        Start Scan
       </button>
 
-      <p>{status}</p>
+      <h2>Status: {status}</h2>
 
-      {items.map((item, i) => (
-        <div key={i} style={{ marginTop: 20, padding: 20, border: "1px solid #ccc" }}>
-          <h3>{item.title}</h3>
-          <p>{item.price}€</p>
-          <p>{item.website}</p>
-          <a href={item.buy_link} target="_blank">Buy</a>
-        </div>
-      ))}
+      <div
+        style={{
+          width: "100%",
+          backgroundColor: "#eee",
+          height: 20,
+          marginTop: 10,
+        }}
+      >
+        <div
+          style={{
+            width: `${progress}%`,
+            backgroundColor: "green",
+            height: "100%",
+          }}
+        />
+      </div>
+
+      <p>{progress}%</p>
+
+      <h2>Results</h2>
+
+      <ul>
+        {results.map((result, index) => (
+          <li key={index}>
+            <strong>{result.url}</strong> — {result.status} — {result.title}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
+
+export default App;
