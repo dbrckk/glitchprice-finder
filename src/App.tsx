@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 
-const API_URL = "https://YOUR-RENDER-URL.onrender.com"; // ← REPLACE with your real backend URL
+const API_URL = "https://deal-finder-backend-y9wb.onrender.com";
 
 interface ScanResult {
   url: string;
@@ -48,27 +48,31 @@ function App() {
 
       const jobId = data.job_id;
 
-      // Start polling every 3 seconds
+      // Poll every 3 seconds
       pollingRef.current = setInterval(async () => {
-        const statusResponse = await fetch(
-          `${API_URL}/status/${jobId}`
-        );
+        try {
+          const statusResponse = await fetch(
+            `${API_URL}/status/${jobId}`
+          );
 
-        const statusData = await statusResponse.json();
+          const statusData = await statusResponse.json();
 
-        if (statusData.error) {
-          setStatus("Error");
-          clearInterval(pollingRef.current!);
-          return;
-        }
+          if (statusData.error) {
+            setStatus("Error");
+            clearInterval(pollingRef.current!);
+            return;
+          }
 
-        setProgress(statusData.progress);
-        setResults(statusData.results);
-        setStatus(statusData.status);
+          setProgress(statusData.progress);
+          setResults(statusData.results);
+          setStatus(statusData.status);
 
-        if (statusData.status === "finished") {
-          clearInterval(pollingRef.current!);
-          setStatus("Finished ✅");
+          if (statusData.status === "finished") {
+            clearInterval(pollingRef.current!);
+            setStatus("Finished ✅");
+          }
+        } catch (err) {
+          console.error("Polling error:", err);
         }
       }, 3000);
 
@@ -80,7 +84,7 @@ function App() {
 
   return (
     <div style={{ padding: 40, fontFamily: "Arial" }}>
-      <h1>Website Scanner</h1>
+      <h1>Deal Finder Scanner</h1>
 
       <textarea
         rows={10}
