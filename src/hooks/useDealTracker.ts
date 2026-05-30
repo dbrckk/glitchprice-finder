@@ -8,6 +8,7 @@ import {
   sortDeals,
 } from "../utils/dealScoring";
 import { DealCategory, DealFilters, DealSignal, ScanJob, ScannerEvent } from "../types";
+import { sanitizeDeals, sanitizeWatchlist } from "../utils/dealValidation";
 
 const STORAGE_KEY = "glitchprice.trackedDeals.v2";
 const LEGACY_STORAGE_KEY = "glitchprice.trackedDeals.v1";
@@ -102,11 +103,11 @@ function safeWrite(key: string, value: unknown) {
 }
 
 function readInitialDeals() {
-  const v2Deals = safeRead<DealSignal[] | null>(STORAGE_KEY, null);
-  if (v2Deals?.length) return v2Deals;
+  const v2Deals = sanitizeDeals(safeRead<unknown>(STORAGE_KEY, null), []);
+  if (v2Deals.length) return v2Deals;
 
-  const legacyDeals = safeRead<DealSignal[] | null>(LEGACY_STORAGE_KEY, null);
-  return legacyDeals?.length ? legacyDeals : INITIAL_DEALS;
+  const legacyDeals = sanitizeDeals(safeRead<unknown>(LEGACY_STORAGE_KEY, null), []);
+  return legacyDeals.length ? legacyDeals : INITIAL_DEALS;
 }
 
 function buildEvent(label: string, severity: ScannerEvent["severity"] = "info"): ScannerEvent {
@@ -165,7 +166,7 @@ function buildDetectedDeal(scanIndex: number): DealSignal {
 
 export function useDealTracker() {
   const [deals, setDeals] = useState<DealSignal[]>(readInitialDeals);
-  const [watchlist, setWatchlist] = useState<string[]>(() => safeRead(WATCHLIST_KEY, []));
+  const [watchlist, setWatchlist] = useState<string[]>(() => sanitizeWatchlist(safeRead<unknown>(WATCHLIST_KEY, [])));
   const [activeCategory, setActiveCategory] = useState<DealCategory>("all");
   const [filters, setFilters] = useState<DealFilters>(DEFAULT_FILTERS);
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
