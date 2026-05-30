@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DealFilters, DealSignal } from "../../types";
 import {
   buildAlerts,
+  calculateCategoryCounts,
   calculateConfidence,
   calculateMetrics,
   dealMatchesFilters,
@@ -78,6 +79,17 @@ describe("dealScoring", () => {
     expect(dealMatchesFilters(baseDeal, { ...defaultFilters, query: "dyson" }, [])).toBe(false);
     expect(dealMatchesFilters(secondDeal, { ...defaultFilters, onlyVerified: true }, [])).toBe(false);
     expect(dealMatchesFilters(baseDeal, { ...defaultFilters, watchlistOnly: true }, ["deal-1"])).toBe(true);
+  });
+
+  it("counts deals by category", () => {
+    expect(calculateCategoryCounts([baseDeal, secondDeal])).toEqual({
+      all: 2,
+      tech: 1,
+      home: 1,
+      gaming: 0,
+      fashion: 0,
+      travel: 0,
+    });
   });
 
   it("sorts and aggregates deals for dashboard metrics", () => {

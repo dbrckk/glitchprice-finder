@@ -87,6 +87,23 @@ export function dealMatchesFilters(deal: DealSignal, filters: DealFilters, watch
   return true;
 }
 
+export function calculateCategoryCounts(deals: DealSignal[]): Record<DealCategory, number> {
+  const counts: Record<DealCategory, number> = {
+    all: deals.length,
+    tech: 0,
+    home: 0,
+    gaming: 0,
+    fashion: 0,
+    travel: 0,
+  };
+
+  deals.forEach((deal) => {
+    counts[deal.category] += 1;
+  });
+
+  return counts;
+}
+
 export function calculateMetrics(deals: DealSignal[], watchlist: string[] = []): TrackerMetrics {
   if (!deals.length) {
     return {

@@ -271,6 +271,18 @@ button:disabled {
   font-weight: 800;
 }
 
+.category-tabs button span {
+  display: inline-grid;
+  min-width: 22px;
+  min-height: 22px;
+  margin-left: 6px;
+  place-items: center;
+  border-radius: 999px;
+  color: #07111f;
+  background: rgba(255, 255, 255, 0.72);
+  font-size: 0.72rem;
+}
+
 .category-tabs button.is-selected {
   color: #07111f;
   border-color: transparent;
@@ -732,4 +744,48 @@ button:disabled {
   .category-tabs {
     justify-content: flex-start;
   }
+}
+
+.app-shell--centered {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+}
+
+.fallback-panel {
+  width: min(760px, 100%);
+  border: 1px solid rgba(251, 113, 133, 0.38);
+  border-radius: 30px;
+  background: linear-gradient(135deg, rgba(251, 113, 133, 0.16), rgba(15, 23, 42, 0.9));
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+  padding: 34px;
+}
+
+.fallback-panel h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 4rem);
+  letter-spacing: -0.06em;
+}
+
+.fallback-panel p {
+  color: var(--text-soft);
+  line-height: 1.7;
+}
+
+.fallback-panel pre {
+  overflow: auto;
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.5);
+  padding: 14px;
+  white-space: pre-wrap;
+}
+
+.fallback-panel button {
+  border: 0;
+  border-radius: 999px;
+  color: white;
+  background: linear-gradient(135deg, var(--danger), var(--accent));
+  padding: 12px 18px;
+  font-weight: 900;
 }

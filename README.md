@@ -20,6 +20,10 @@ npm run test
 npm run verify
 ```
 
+## Configuration optionnelle
+
+Copie `.env.example` vers `.env.local` si tu veux connecter un backend gratuit compatible avec les helpers `src/api/glitchApi.ts`. Sans configuration, le dashboard reste entièrement fonctionnel avec les données mockées locales.
+
 ## Prochain branchement recommandé
 
 Ajouter un backend serverless gratuit (Supabase Edge Functions, Firebase Functions free-tier ou Render free-tier si disponible) avec Playwright/Cheerio et stockage Supabase free-tier. Les données mockées du frontend peuvent être remplacées progressivement par une API sans changer le modèle métier principal.

@@ -1,3 +1,4 @@
+import { memo, useCallback } from "react";
 import { useDealTracker } from "./hooks/useDealTracker";
 import { buildDealsCsv, buildExportFilename } from "./utils/dealExport";
 import { DealCategory, DealSignal, DealSortMode } from "./types";
@@ -18,7 +19,7 @@ function StockLabel({ stock }: { stock: DealSignal["stock"] }) {
   return <span className={`stock-pill stock-pill--${stock}`}>{label}</span>;
 }
 
-function DealCard({
+const DealCard = memo(function DealCard({
   deal,
   isTracked,
   onToggleWatchlist,
@@ -116,7 +117,7 @@ function DealCard({
       </div>
     </article>
   );
-}
+});
 
 function App() {
   const {
@@ -124,6 +125,7 @@ function App() {
     deals,
     allDeals,
     metrics,
+    categoryCounts,
     alerts,
     activeCategory,
     filters,
@@ -139,7 +141,7 @@ function App() {
     verifyDeal,
   } = useDealTracker();
 
-  const exportVisibleDeals = () => {
+  const exportVisibleDeals = useCallback(() => {
     const csvContent = buildDealsCsv(deals);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
     const downloadUrl = URL.createObjectURL(blob);
@@ -149,7 +151,7 @@ function App() {
     link.download = buildExportFilename();
     link.click();
     URL.revokeObjectURL(downloadUrl);
-  };
+  }, [deals]);
 
   return (
     <main className="app-shell">
@@ -271,7 +273,7 @@ function App() {
                   className={activeCategory === category ? "is-selected" : ""}
                   onClick={() => setActiveCategory(category)}
                 >
-                  {CATEGORY_LABELS[category]}
+                  {CATEGORY_LABELS[category]} <span>{categoryCounts[category]}</span>
                 </button>
               ))}
             </div>

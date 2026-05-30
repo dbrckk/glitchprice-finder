@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { FREE_SOURCES, INITIAL_DEALS } from "../data/mockDeals";
 import {
   buildAlerts,
+  calculateCategoryCounts,
   calculateConfidence,
   calculateMetrics,
   dealMatchesFilters,
@@ -9,6 +10,7 @@ import {
 } from "../utils/dealScoring";
 import { DealCategory, DealFilters, DealSignal, ScanJob, ScannerEvent } from "../types";
 import { sanitizeDeals, sanitizeWatchlist } from "../utils/dealValidation";
+import { safeReadJson, safeWriteJson } from "../utils/storage";
 
 const STORAGE_KEY = "glitchprice.trackedDeals.v2";
 const LEGACY_STORAGE_KEY = "glitchprice.trackedDeals.v1";
@@ -77,36 +79,11 @@ const SCAN_TEMPLATES = [
   },
 ];
 
-function hasStorage() {
-  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
-}
-
-function safeRead<T>(key: string, fallback: T): T {
-  if (!hasStorage()) return fallback;
-
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function safeWrite(key: string, value: unknown) {
-  if (!hasStorage()) return;
-
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch {
-    // Local storage can be full or disabled in private browsing; the app should keep running in-memory.
-  }
-}
-
 function readInitialDeals() {
-  const v2Deals = sanitizeDeals(safeRead<unknown>(STORAGE_KEY, null), []);
+  const v2Deals = sanitizeDeals(safeReadJson<unknown>(STORAGE_KEY, null), []);
   if (v2Deals.length) return v2Deals;
 
-  const legacyDeals = sanitizeDeals(safeRead<unknown>(LEGACY_STORAGE_KEY, null), []);
+  const legacyDeals = sanitizeDeals(safeReadJson<unknown>(LEGACY_STORAGE_KEY, null), []);
   return legacyDeals.length ? legacyDeals : INITIAL_DEALS;
 }
 
@@ -166,7 +143,7 @@ function buildDetectedDeal(scanIndex: number): DealSignal {
 
 export function useDealTracker() {
   const [deals, setDeals] = useState<DealSignal[]>(readInitialDeals);
-  const [watchlist, setWatchlist] = useState<string[]>(() => sanitizeWatchlist(safeRead<unknown>(WATCHLIST_KEY, [])));
+  const [watchlist, setWatchlist] = useState<string[]>(() => sanitizeWatchlist(safeReadJson<unknown>(WATCHLIST_KEY, [])));
   const [activeCategory, setActiveCategory] = useState<DealCategory>("all");
   const [filters, setFilters] = useState<DealFilters>(DEFAULT_FILTERS);
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
@@ -177,11 +154,11 @@ export function useDealTracker() {
   const verificationTimeoutsRef = useRef<number[]>([]);
 
   useEffect(() => {
-    safeWrite(STORAGE_KEY, deals);
+    safeWriteJson(STORAGE_KEY, deals);
   }, [deals]);
 
   useEffect(() => {
-    safeWrite(WATCHLIST_KEY, watchlist);
+    safeWriteJson(WATCHLIST_KEY, watchlist);
   }, [watchlist]);
 
   useEffect(() => {
@@ -202,6 +179,7 @@ export function useDealTracker() {
   }, [activeCategory, deals, filters, watchlist]);
 
   const metrics = useMemo(() => calculateMetrics(filteredDeals, watchlist), [filteredDeals, watchlist]);
+  const categoryCounts = useMemo(() => calculateCategoryCounts(deals), [deals]);
   const alerts = useMemo(() => buildAlerts(deals, watchlist), [deals, watchlist]);
 
   const updateFilters = (partialFilters: Partial<DealFilters>) => {
@@ -314,6 +292,7 @@ export function useDealTracker() {
     deals: filteredDeals,
     allDeals: deals,
     metrics,
+    categoryCounts,
     alerts,
     activeCategory,
     filters,
