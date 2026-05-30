@@ -1,6 +1,7 @@
-import { memo, useCallback } from "react";
+import { memo, useCallback, useMemo } from "react";
 import { useDealTracker } from "./hooks/useDealTracker";
 import { buildDealsCsv, buildExportFilename } from "./utils/dealExport";
+import { buildDealInsights } from "./utils/dealInsights";
 import { getFreshnessLabel } from "./utils/dealFreshness";
 import { evaluateDealRisks } from "./utils/riskRules";
 import { DealCategory, DealSignal, DealSortMode } from "./types";
@@ -168,6 +169,7 @@ function App() {
     link.click();
     URL.revokeObjectURL(downloadUrl);
   }, [deals]);
+  const insights = useMemo(() => buildDealInsights(allDeals, watchlist), [allDeals, watchlist]);
 
   return (
     <main className="app-shell">
@@ -264,6 +266,29 @@ function App() {
           <span>Deals vérifiés</span>
           <strong>{metrics.verifiedDeals}</strong>
         </div>
+      </section>
+
+      <section className="insight-grid" aria-label="Pilotage intelligence deals">
+        <article className="insight-card insight-card--primary">
+          <p className="eyebrow">Action recommandée</p>
+          <strong>{insights.recommendedAction}</strong>
+          <span>{insights.criticalDeals} alertes critiques • {insights.urgentLowStockDeals} stocks bas actifs</span>
+        </article>
+        <article className="insight-card">
+          <span>Meilleure opportunité</span>
+          <strong>{insights.bestDeal ? insights.bestDeal.title : "Aucun deal actif"}</strong>
+          <small>{insights.bestDeal ? `${insights.bestDeal.merchant} • score ${getOpportunityScore(insights.bestDeal)}` : "Lance un scan pour alimenter le cockpit."}</small>
+        </article>
+        <article className="insight-card">
+          <span>Qualité portefeuille</span>
+          <strong>{insights.averageConfidence}%</strong>
+          <small>{insights.verificationRate}% vérifiés • {insights.watchlistCoverage}% en watchlist</small>
+        </article>
+        <article className="insight-card">
+          <span>Marchand à prioriser</span>
+          <strong>{insights.topMerchant ? insights.topMerchant.merchant : "—"}</strong>
+          <small>{insights.topMerchant ? `${insights.topMerchant.dealCount} deals • ${formatCurrency(insights.topMerchant.potentialSavings)} d'économies` : "Aucune concentration détectée."}</small>
+        </article>
       </section>
 
       <section className="workspace-grid">

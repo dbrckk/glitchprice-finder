@@ -853,3 +853,51 @@ button:disabled {
   font-size: 0.78rem;
   font-weight: 900;
 }
+
+.insight-grid {
+  display: grid;
+  grid-template-columns: 1.25fr repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.insight-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-height: 136px;
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  background: rgba(15, 23, 42, 0.74);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.18);
+  padding: 18px;
+}
+
+.insight-card--primary {
+  border-color: rgba(34, 211, 238, 0.36);
+  background: linear-gradient(135deg, rgba(34, 211, 238, 0.15), rgba(139, 92, 246, 0.14), rgba(15, 23, 42, 0.82));
+}
+
+.insight-card > span,
+.insight-card small {
+  color: var(--text-soft);
+  line-height: 1.45;
+}
+
+.insight-card > strong {
+  color: white;
+  font-size: clamp(1.05rem, 2vw, 1.5rem);
+  line-height: 1.22;
+}
+
+@media (max-width: 1250px) {
+  .insight-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .insight-grid {
+    grid-template-columns: 1fr;
+  }
+}
