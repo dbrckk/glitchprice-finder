@@ -1,134 +1,209 @@
-import React, { useState, useRef } from "react";
+import { useDealTracker } from "./hooks/useDealTracker";
+import { DealCategory, DealSignal } from "./types";
+import { formatCurrency, formatRelativeTime } from "./utils/dealScoring";
 
-const API_URL = "https://deal-finder-backend-y9wb.onrender.com";
+const CATEGORIES: Array<{ label: string; value: DealCategory }> = [
+  { label: "Tous", value: "all" },
+  { label: "Tech", value: "tech" },
+  { label: "Maison", value: "home" },
+  { label: "Gaming", value: "gaming" },
+  { label: "Mode", value: "fashion" },
+  { label: "Voyage", value: "travel" },
+];
 
-interface ScanResult {
-  url: string;
-  status: number | string;
-  title: string;
+function DealCard({
+  deal,
+  isTracked,
+  onToggleWatchlist,
+  onVerify,
+}: {
+  deal: DealSignal;
+  isTracked: boolean;
+  onToggleWatchlist: (dealId: string) => void;
+  onVerify: (dealId: string) => void;
+}) {
+  const maxPrice = Math.max(...deal.priceHistory.map((snapshot) => snapshot.price));
+
+  return (
+    <article className="deal-card">
+      <div className="deal-card__icon" aria-hidden="true">
+        {deal.image}
+      </div>
+
+      <div className="deal-card__content">
+        <div className="deal-card__header">
+          <div>
+            <p className="eyebrow">{deal.merchant} • {formatRelativeTime(deal.detectedAt)}</p>
+            <h3>{deal.title}</h3>
+          </div>
+          <span className={`status status--${deal.verificationStatus}`}>
+            {deal.verificationStatus === "verified" ? "Vérifié" : deal.verificationStatus === "checking" ? "Check" : "Suivi"}
+          </span>
+        </div>
+
+        <div className="price-row">
+          <strong>{formatCurrency(deal.price, deal.currency)}</strong>
+          <span>{formatCurrency(deal.referencePrice, deal.currency)}</span>
+          <mark>-{deal.discountPercent}%</mark>
+        </div>
+
+        <div className="confidence-meter" aria-label={`Score de confiance ${deal.confidenceScore}%`}>
+          <span style={{ width: `${deal.confidenceScore}%` }} />
+        </div>
+
+        <div className="sparkline" aria-label="Historique du prix">
+          {deal.priceHistory.map((snapshot) => (
+            <span key={snapshot.date} title={`${snapshot.date}: ${formatCurrency(snapshot.price, deal.currency)}`}>
+              <i style={{ height: `${Math.max(18, (snapshot.price / maxPrice) * 72)}px` }} />
+              <small>{snapshot.date}</small>
+            </span>
+          ))}
+        </div>
+
+        <div className="tag-row">
+          {deal.tags.map((tag) => (
+            <span key={tag}>#{tag}</span>
+          ))}
+        </div>
+
+        <div className="deal-actions">
+          <a href={deal.url} target="_blank" rel="noreferrer">
+            Voir l'offre
+          </a>
+          <button type="button" onClick={() => onVerify(deal.id)}>
+            Re-vérifier
+          </button>
+          <button type="button" className={isTracked ? "is-active" : ""} onClick={() => onToggleWatchlist(deal.id)}>
+            {isTracked ? "Retirer du suivi" : "Suivre"}
+          </button>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 function App() {
-  const [websitesInput, setWebsitesInput] = useState("");
-  const [results, setResults] = useState<ScanResult[]>([]);
-  const [progress, setProgress] = useState(0);
-  const [status, setStatus] = useState("");
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-
-  const startScan = async () => {
-    const websites = websitesInput
-      .split("\n")
-      .map((w) => w.trim())
-      .filter((w) => w !== "");
-
-    if (websites.length === 0) {
-      alert("Please enter at least one website.");
-      return;
-    }
-
-    setResults([]);
-    setProgress(0);
-    setStatus("Starting...");
-
-    try {
-      const response = await fetch(`${API_URL}/start-scan`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ websites }),
-      });
-
-      const data = await response.json();
-
-      if (!data.job_id) {
-        alert("Failed to start scan.");
-        return;
-      }
-
-      const jobId = data.job_id;
-
-      // Poll every 3 seconds
-      pollingRef.current = setInterval(async () => {
-        try {
-          const statusResponse = await fetch(
-            `${API_URL}/status/${jobId}`
-          );
-
-          const statusData = await statusResponse.json();
-
-          if (statusData.error) {
-            setStatus("Error");
-            clearInterval(pollingRef.current!);
-            return;
-          }
-
-          setProgress(statusData.progress);
-          setResults(statusData.results);
-          setStatus(statusData.status);
-
-          if (statusData.status === "finished") {
-            clearInterval(pollingRef.current!);
-            setStatus("Finished ✅");
-          }
-        } catch (err) {
-          console.error("Polling error:", err);
-        }
-      }, 3000);
-
-    } catch (error) {
-      console.error(error);
-      alert("Error connecting to backend.");
-    }
-  };
+  const {
+    sources,
+    deals,
+    metrics,
+    activeCategory,
+    scanJob,
+    watchlist,
+    setActiveCategory,
+    startFreeScan,
+    toggleWatchlist,
+    verifyDeal,
+  } = useDealTracker();
 
   return (
-    <div style={{ padding: 40, fontFamily: "Arial" }}>
-      <h1>Deal Finder Scanner</h1>
+    <main className="app-shell">
+      <section className="hero-panel">
+        <div className="hero-panel__copy">
+          <p className="eyebrow">GlitchPrice Finder • moteur 100% free-tier ready</p>
+          <h1>Radar autonome de promotions extrêmes et erreurs de prix.</h1>
+          <p>
+            Centralise les signaux, score les opportunités, simule un scan multi-sources gratuit et garde une watchlist
+            persistante dans le navigateur en attendant le branchement backend.
+          </p>
+          <div className="hero-actions">
+            <button type="button" onClick={startFreeScan} disabled={scanJob?.status === "running"}>
+              {scanJob?.status === "running" ? "Scan en cours..." : "Lancer un scan gratuit"}
+            </button>
+            <span>{sources.length} sources publiques configurées</span>
+          </div>
+        </div>
 
-      <textarea
-        rows={10}
-        style={{ width: "100%", marginBottom: 20 }}
-        placeholder="Enter one website per line"
-        value={websitesInput}
-        onChange={(e) => setWebsitesInput(e.target.value)}
-      />
+        <aside className="scan-console" aria-label="Console de scan">
+          <div className="scan-console__topline">
+            <span>{scanJob?.status === "completed" ? "Terminé" : scanJob?.status === "running" ? "Running" : "Prêt"}</span>
+            <strong>{scanJob?.progress ?? 0}%</strong>
+          </div>
+          <div className="progress-track">
+            <span style={{ width: `${scanJob?.progress ?? 0}%` }} />
+          </div>
+          <dl>
+            <div>
+              <dt>Sources scannées</dt>
+              <dd>{scanJob?.scannedSources ?? 0}/{sources.length}</dd>
+            </div>
+            <div>
+              <dt>Deals détectés</dt>
+              <dd>{scanJob?.detectedDeals ?? 0}</dd>
+            </div>
+          </dl>
+        </aside>
+      </section>
 
-      <button onClick={startScan} style={{ padding: 10, fontSize: 16 }}>
-        Start Scan
-      </button>
+      <section className="metric-grid" aria-label="Indicateurs tracking">
+        <div>
+          <span>Remise moyenne</span>
+          <strong>{metrics.averageDiscount}%</strong>
+        </div>
+        <div>
+          <span>Score ≥ 85</span>
+          <strong>{metrics.highConfidenceDeals}</strong>
+        </div>
+        <div>
+          <span>Stock bas</span>
+          <strong>{metrics.lowStockDeals}</strong>
+        </div>
+        <div>
+          <span>Économies potentielles</span>
+          <strong>{formatCurrency(metrics.potentialSavings)}</strong>
+        </div>
+      </section>
 
-      <h2>Status: {status}</h2>
+      <section className="workspace-grid">
+        <aside className="source-panel">
+          <div className="section-heading">
+            <p className="eyebrow">Pipeline</p>
+            <h2>Sources gratuites</h2>
+          </div>
+          <div className="source-list">
+            {sources.map((source) => (
+              <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="source-card">
+                <span>{source.name}</span>
+                <small>{source.cadenceMinutes} min • fiabilité {source.reliability}%</small>
+              </a>
+            ))}
+          </div>
+        </aside>
 
-      <div
-        style={{
-          width: "100%",
-          backgroundColor: "#eee",
-          height: 20,
-          marginTop: 10,
-        }}
-      >
-        <div
-          style={{
-            width: `${progress}%`,
-            backgroundColor: "green",
-            height: "100%",
-          }}
-        />
-      </div>
+        <section className="deal-panel">
+          <div className="section-heading section-heading--inline">
+            <div>
+              <p className="eyebrow">Opportunités triées par score</p>
+              <h2>Deals détectés</h2>
+            </div>
+            <div className="category-tabs" role="tablist" aria-label="Filtres catégories">
+              {CATEGORIES.map((category) => (
+                <button
+                  key={category.value}
+                  type="button"
+                  className={activeCategory === category.value ? "is-selected" : ""}
+                  onClick={() => setActiveCategory(category.value)}
+                >
+                  {category.label}
+                </button>
+              ))}
+            </div>
+          </div>
 
-      <p>{progress}%</p>
-
-      <h2>Results</h2>
-
-      <ul>
-        {results.map((result, index) => (
-          <li key={index}>
-            <strong>{result.url}</strong> — {result.status} — {result.title}
-          </li>
-        ))}
-      </ul>
-    </div>
+          <div className="deal-list">
+            {deals.map((deal) => (
+              <DealCard
+                key={deal.id}
+                deal={deal}
+                isTracked={watchlist.includes(deal.id)}
+                onToggleWatchlist={toggleWatchlist}
+                onVerify={verifyDeal}
+              />
+            ))}
+          </div>
+        </section>
+      </section>
+    </main>
   );
 }
 
