@@ -789,3 +789,67 @@ button:disabled {
   padding: 12px 18px;
   font-weight: 900;
 }
+
+.live-policy-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 18px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  border-radius: 20px;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.live-policy-panel strong,
+.live-policy-panel span,
+.live-policy-panel code {
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: rgba(2, 6, 23, 0.35);
+}
+
+.live-policy-panel strong {
+  color: var(--success);
+}
+
+.live-policy-panel code {
+  color: #bae6fd;
+}
+
+.risk-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -6px 0 16px;
+}
+
+.risk-row__item {
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #e0f2fe;
+  background: rgba(148, 163, 184, 0.1);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.risk-row__item--high {
+  border-color: rgba(251, 113, 133, 0.42);
+  color: #fecdd3;
+}
+
+.risk-row__item--medium {
+  border-color: rgba(245, 158, 11, 0.42);
+  color: #fde68a;
+}
+
+.freshness-pill {
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: #bfdbfe;
+  background: rgba(59, 130, 246, 0.16);
+  font-size: 0.78rem;
+  font-weight: 900;
+}

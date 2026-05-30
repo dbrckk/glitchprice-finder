@@ -1,3 +1,5 @@
+import { QUALITY_THRESHOLDS } from "../config/qualityThresholds";
+
 export interface GlitchItem {
   name: string;
   description: string;
@@ -16,7 +18,7 @@ export interface VerifyItemResult {
 }
 
 const DEFAULT_API_URL = "https://deal-finder-backend-y9wb.onrender.com";
-const REQUEST_TIMEOUT_MS = 8_000;
+const REQUEST_TIMEOUT_MS = QUALITY_THRESHOLDS.liveScanRequestTimeoutMs;
 
 function getApiBaseUrl() {
   return import.meta.env.VITE_GLITCHPRICE_API_URL || DEFAULT_API_URL;

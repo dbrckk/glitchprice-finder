@@ -70,6 +70,13 @@ export interface AlertRule {
   dealId?: string;
 }
 
+export interface LiveScanPolicy {
+  franceDeliveryRequired: true;
+  minimumDiscountPercent: number;
+  sourceCount: number;
+  lastLocalScanArtifact: string;
+}
+
 export interface TrackerMetrics {
   averageDiscount: number;
   highConfidenceDeals: number;

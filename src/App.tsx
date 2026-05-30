@@ -1,6 +1,8 @@
 import { memo, useCallback } from "react";
 import { useDealTracker } from "./hooks/useDealTracker";
 import { buildDealsCsv, buildExportFilename } from "./utils/dealExport";
+import { getFreshnessLabel } from "./utils/dealFreshness";
+import { evaluateDealRisks } from "./utils/riskRules";
 import { DealCategory, DealSignal, DealSortMode } from "./types";
 import {
   CATEGORY_LABELS,
@@ -32,6 +34,8 @@ const DealCard = memo(function DealCard({
 }) {
   const maxPrice = Math.max(...deal.priceHistory.map((snapshot) => snapshot.price), deal.referencePrice);
   const opportunityScore = getOpportunityScore(deal);
+  const risks = evaluateDealRisks(deal);
+  const freshnessLabel = getFreshnessLabel(deal);
 
   return (
     <article className={`deal-card ${isTracked ? "deal-card--tracked" : ""}`}>
@@ -58,6 +62,7 @@ const DealCard = memo(function DealCard({
                     : "Suivi"}
             </span>
             <StockLabel stock={deal.stock} />
+            <span className="freshness-pill">{freshnessLabel}</span>
           </div>
         </div>
 
@@ -103,6 +108,16 @@ const DealCard = memo(function DealCard({
           ))}
         </div>
 
+        {risks.length > 0 && (
+          <div className="risk-row" aria-label="Signaux de risque">
+            {risks.map((risk) => (
+              <span key={risk.id} className={`risk-row__item risk-row__item--${risk.severity}`}>
+                {risk.label}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="deal-actions">
           <a href={deal.url} target="_blank" rel="noreferrer">
             Voir l'offre
@@ -122,6 +137,7 @@ const DealCard = memo(function DealCard({
 function App() {
   const {
     sources,
+    liveScanPolicy,
     deals,
     allDeals,
     metrics,
@@ -201,6 +217,14 @@ function App() {
             ))}
           </div>
         </aside>
+      </section>
+
+      <section className="live-policy-panel" aria-label="Politique scan live">
+        <strong>Scan live France</strong>
+        <span>Livraison France obligatoire</span>
+        <span>Remise minimum {liveScanPolicy.minimumDiscountPercent}%</span>
+        <span>{liveScanPolicy.sourceCount} sources publiques</span>
+        <code>{liveScanPolicy.lastLocalScanArtifact}</code>
       </section>
 
       <section className="alert-grid" aria-label="Alertes prioritaires">

@@ -1,3 +1,4 @@
+import { QUALITY_THRESHOLDS } from "../config/qualityThresholds";
 import { AlertRule, DealCategory, DealFilters, DealSignal, DealSortMode, TrackerMetrics } from "../types";
 
 export const CATEGORY_LABELS: Record<DealCategory, string> = {
@@ -120,7 +121,7 @@ export function calculateMetrics(deals: DealSignal[], watchlist: string[] = []):
 
   return {
     averageDiscount: Math.round(totalDiscount / deals.length),
-    highConfidenceDeals: deals.filter((deal) => deal.confidenceScore >= 85).length,
+    highConfidenceDeals: deals.filter((deal) => deal.confidenceScore >= QUALITY_THRESHOLDS.highConfidenceScore).length,
     lowStockDeals: deals.filter((deal) => deal.stock === "low").length,
     potentialSavings: deals.reduce((sum, deal) => sum + getSavings(deal), 0),
     trackedDeals: deals.filter((deal) => watchlist.includes(deal.id)).length,
@@ -129,7 +130,7 @@ export function calculateMetrics(deals: DealSignal[], watchlist: string[] = []):
 }
 
 export function buildAlerts(deals: DealSignal[], watchlist: string[]): AlertRule[] {
-  const criticalDeal = deals.find((deal) => deal.discountPercent >= 65 && deal.confidenceScore >= 85);
+  const criticalDeal = deals.find((deal) => deal.discountPercent >= QUALITY_THRESHOLDS.probablePriceErrorDiscountPercent && deal.confidenceScore >= QUALITY_THRESHOLDS.highConfidenceScore);
   const trackedLowStock = deals.find((deal) => watchlist.includes(deal.id) && deal.stock === "low");
   const needsVerification = deals.find((deal) => deal.discountPercent >= 55 && deal.verificationStatus !== "verified");
 

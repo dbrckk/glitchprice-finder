@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FREE_SOURCES, INITIAL_DEALS } from "../data/mockDeals";
+import { LIVE_DEAL_SOURCES } from "../data/sourceCatalog";
 import {
   buildAlerts,
   calculateCategoryCounts,
@@ -8,7 +9,8 @@ import {
   dealMatchesFilters,
   sortDeals,
 } from "../utils/dealScoring";
-import { DealCategory, DealFilters, DealSignal, ScanJob, ScannerEvent } from "../types";
+import { DealCategory, DealFilters, DealSignal, LiveScanPolicy, ScanJob, ScannerEvent } from "../types";
+import { dedupeDeals } from "../utils/dealDedupe";
 import { sanitizeDeals, sanitizeWatchlist } from "../utils/dealValidation";
 import { safeReadJson, safeWriteJson } from "../utils/storage";
 
@@ -17,6 +19,13 @@ const LEGACY_STORAGE_KEY = "glitchprice.trackedDeals.v1";
 const WATCHLIST_KEY = "glitchprice.watchlist.v1";
 const MAX_DEALS = 24;
 const MAX_EVENTS = 8;
+
+const LIVE_SCAN_POLICY: LiveScanPolicy = {
+  franceDeliveryRequired: true,
+  minimumDiscountPercent: 35,
+  sourceCount: LIVE_DEAL_SOURCES.length,
+  lastLocalScanArtifact: "artifacts/live-deals.json",
+};
 
 const DEFAULT_FILTERS: DealFilters = {
   query: "",
@@ -81,10 +90,10 @@ const SCAN_TEMPLATES = [
 
 function readInitialDeals() {
   const v2Deals = sanitizeDeals(safeReadJson<unknown>(STORAGE_KEY, null), []);
-  if (v2Deals.length) return v2Deals;
+  if (v2Deals.length) return dedupeDeals(v2Deals);
 
   const legacyDeals = sanitizeDeals(safeReadJson<unknown>(LEGACY_STORAGE_KEY, null), []);
-  return legacyDeals.length ? legacyDeals : INITIAL_DEALS;
+  return legacyDeals.length ? dedupeDeals(legacyDeals) : INITIAL_DEALS;
 }
 
 function buildEvent(label: string, severity: ScannerEvent["severity"] = "info"): ScannerEvent {
@@ -222,7 +231,7 @@ export function useDealTracker() {
 
       if (shouldAddDeal) {
         const detectedDeal = buildDetectedDeal(tick);
-        setDeals((currentDeals) => [detectedDeal, ...currentDeals].slice(0, MAX_DEALS));
+        setDeals((currentDeals) => dedupeDeals([detectedDeal, ...currentDeals]).slice(0, MAX_DEALS));
         pushEvent(`${detectedDeal.merchant}: ${detectedDeal.discountPercent}% détecté sur ${detectedDeal.title}.`, "success");
       } else {
         pushEvent(`${scannedSources}/${FREE_SOURCES.length} sources inspectées sans doublon critique.`, "info");
@@ -289,6 +298,7 @@ export function useDealTracker() {
 
   return {
     sources: FREE_SOURCES,
+    liveScanPolicy: LIVE_SCAN_POLICY,
     deals: filteredDeals,
     allDeals: deals,
     metrics,

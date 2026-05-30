@@ -18,11 +18,16 @@ npm run build
 npm run typecheck
 npm run test
 npm run verify
+npm run scan:live
 ```
 
 ## Configuration optionnelle
 
 Copie `.env.example` vers `.env.local` si tu veux connecter un backend gratuit compatible avec les helpers `src/api/glitchApi.ts`. Sans configuration, le dashboard reste entièrement fonctionnel avec les données mockées locales.
+
+## Scan live gratuit
+
+`npm run scan:live` tente une collecte serveur Node sur des sources publiques compatibles France, applique un seuil de remise >= 35%, exige un signal de livraison France et écrit `artifacts/live-deals.json` et `artifacts/live-deals.csv`. Les erreurs réseau ou anti-bot sont reportées sans casser le pipeline local.
 
 ## Prochain branchement recommandé
 
