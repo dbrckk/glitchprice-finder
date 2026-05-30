@@ -40,6 +40,17 @@ export const LIVE_DEAL_SOURCES: LiveDealSource[] = [
     requiresFranceDelivery: true,
     reliability: 88,
   },
+
+  {
+    id: "dealabs-price-error-fr",
+    name: "Dealabs erreurs de prix",
+    url: "https://www.dealabs.com/search?q=erreur%20prix",
+    kind: "html",
+    category: "tech",
+    country: "FR",
+    requiresFranceDelivery: true,
+    reliability: 90,
+  },
   {
     id: "amazon-fr-deals",
     name: "Amazon FR offres du jour",

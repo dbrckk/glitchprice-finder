@@ -27,7 +27,9 @@ Copie `.env.example` vers `.env.local` si tu veux connecter un backend gratuit c
 
 ## Scan live gratuit
 
-`npm run scan:live` tente une collecte serveur Node sur des sources publiques compatibles France, applique un seuil de remise >= 35%, exige un signal de livraison France et écrit `artifacts/live-deals.json` et `artifacts/live-deals.csv`. Les erreurs réseau ou anti-bot sont reportées sans casser le pipeline local.
+`npm run scan:live` tente une collecte serveur Node sur des sources publiques compatibles France, applique un seuil de remise >= 35%, exige un signal de livraison France, déduplique/classe les candidats par `qualityScore` et écrit `artifacts/live-deals.json` et `artifacts/live-deals.csv`. Les erreurs réseau ou anti-bot sont reportées sans casser le pipeline local.
+
+Options utiles : `npm run scan:live -- --min-discount=45 --max-results=20 --timeout-ms=12000` pour durcir le seuil, limiter les résultats et ajuster le timeout sans service payant.
 
 ## Prochain branchement recommandé
 
