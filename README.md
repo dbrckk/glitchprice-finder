@@ -24,6 +24,8 @@ npm run check:real-feed
 npm run check:merge
 ```
 
+Les scripts `build`, `typecheck`, `test` et `verify` relancent automatiquement `npm ci` si les dépendances locales nécessaires manquent, ce qui évite les erreurs de type `Cannot find module 'vitest'` sur un environnement fraîchement cloné.
+
 ## Configuration optionnelle
 
 Copie `.env.example` vers `.env.local` si tu veux connecter un backend gratuit compatible avec les helpers `src/api/glitchApi.ts`. Sans configuration, le dashboard charge le dernier artefact réel généré dans `public/live-deals.json`.
