@@ -1,0 +1,5 @@
+# Keep generated/runtime artifacts visible as text in GitHub so they never appear as binary-only diffs.
+package-lock.json linguist-generated=true
+public/live-deals.json linguist-generated=true diff=json
+public/live-deals.csv linguist-generated=true diff=csv merge=union
+artifacts/** linguist-generated=true diff

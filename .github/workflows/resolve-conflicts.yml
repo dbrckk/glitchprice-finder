@@ -1,0 +1,45 @@
+name: Resolve PR Conflicts
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_branch:
+        description: Target branch to merge into the current branch
+        required: true
+        default: main
+      push_resolution:
+        description: Push the generated merge commit back to this branch
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout current branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Configure merge author
+        run: |
+          git config user.name "glitchprice-merge-bot"
+          git config user.email "glitchprice-merge-bot@users.noreply.github.com"
+
+      - name: Resolve known PR conflicts and verify
+        run: |
+          PUSH_FLAG=""
+          if [ "${{ inputs.push_resolution }}" = "true" ]; then
+            PUSH_FLAG="--push"
+          fi
+          npm run resolve:pr-conflicts -- --base="${{ inputs.base_branch }}" $PUSH_FLAG
