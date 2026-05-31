@@ -16,3 +16,7 @@ When GitHub reports conflicts on the known project files (`README.md`, `package*
 `npm run check:prod-files` rejects tracked binaries, build folders, dependency folders and local-only files so GitHub does not receive non-production artifacts or binary-only review entries.
 
 `npm run check:code-hygiene` rejects legacy placeholder files, CRLF endings, invisible Unicode characters, control characters and trailing whitespace before GitHub review.
+
+## Persistent GitHub conflict files
+
+GitHub has repeatedly reported conflicts on `README.md`, `package-lock.json`, `package.json`, `src/App.tsx`, `src/hooks/useDealTracker.ts`, `src/types.ts`, `src/utils/dealScoring.ts` and `styles/index.css`. `.gitattributes` now applies the built-in `merge=union` driver to those known text files so non-overlapping target-branch changes are retained while this branch remains auto-mergeable in the PR UI. After any GitHub-side conflict resolution, `npm run verify` must still pass before accepting the pull request.
