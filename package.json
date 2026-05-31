@@ -7,11 +7,12 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verify": "npm run check:conflicts && npm run check:real-feed && npm run typecheck && npm run test && npm run build && npm audit",
+    "verify": "npm run check:merge && npm run check:real-feed && npm run typecheck && npm run test && npm run build && npm audit",
     "scan:live": "node scripts/scan-live-deals.mjs",
-    "check:conflicts": "node scripts/check-conflicts.mjs",
+    "check:conflicts": "npm run check:merge",
     "scan:live:public": "node scripts/scan-live-deals.mjs --artifacts-dir=public",
-    "check:real-feed": "node scripts/check-real-feed.mjs"
+    "check:real-feed": "node scripts/check-real-feed.mjs",
+    "check:merge": "node scripts/check-conflicts.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",

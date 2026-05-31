@@ -21,6 +21,7 @@ npm run verify
 npm run scan:live
 npm run scan:live:public
 npm run check:real-feed
+npm run check:merge
 ```
 
 ## Configuration optionnelle
@@ -40,3 +41,7 @@ Le workflow GitHub Actions `Refresh Live Deals` exécute `npm run scan:live:publ
 ## Prochain branchement recommandé
 
 Ajouter un backend serverless gratuit (Supabase Edge Functions, Firebase Functions free-tier ou Render free-tier si disponible) avec Playwright/Cheerio et stockage Supabase free-tier. Le flux public peut être remplacé progressivement par une API sans changer le modèle métier principal.
+
+## Merge GitHub
+
+Avant de mettre à jour la branche sur GitHub, lance `npm run check:merge` puis `npm run verify`. Le dépôt inclut aussi `.gitattributes` pour réduire les conflits sur les artefacts générés (`public/live-deals.*`, `package-lock.json`) et `docs/merge-readiness.md` résume la procédure de résolution si GitHub signale encore un conflit de branche.
