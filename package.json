@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "pretest": "node scripts/ensure-dependencies.mjs",
     "test": "vitest run",
-    "preverify": "node scripts/ensure-dependencies.mjs",
+    "preverify": "node scripts/sync-package-lock.mjs && node scripts/ensure-dependencies.mjs",
     "verify": "npm run check:merge && npm run check:prod-files && npm run check:code-hygiene && npm run check:real-feed && npm run typecheck && npm run test && npm run build && npm audit",
     "scan:live": "node scripts/scan-live-deals.mjs",
     "check:conflicts": "npm run check:merge",
@@ -19,7 +19,8 @@
     "check:merge": "node scripts/check-conflicts.mjs",
     "resolve:pr-conflicts": "node scripts/resolve-pr-conflicts.mjs",
     "check:prod-files": "node scripts/check-prod-files.mjs",
-    "check:code-hygiene": "node scripts/check-code-hygiene.mjs"
+    "check:code-hygiene": "node scripts/check-code-hygiene.mjs",
+    "lock:sync": "node scripts/sync-package-lock.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",

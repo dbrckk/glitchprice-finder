@@ -24,10 +24,11 @@ npm run check:real-feed
 npm run check:merge
 npm run check:prod-files
 npm run check:code-hygiene
+npm run lock:sync
 npm run resolve:pr-conflicts -- --base=main --branch=<branche-pr> --push
 ```
 
-`npm run check:prod-files` refuse les binaires, dossiers de build, dépendances et fichiers locaux non-production suivis par Git. `npm run check:code-hygiene` refuse les placeholders legacy, fins de ligne CRLF, espaces invisibles, caractères de contrôle et espaces finaux. Les scripts `build`, `typecheck`, `test` et `verify` relancent automatiquement `npm ci` si les dépendances locales nécessaires manquent, ce qui évite les erreurs de type `Cannot find module 'vitest'` sur un environnement fraîchement cloné.
+`npm run lock:sync` réaligne uniquement les métadonnées racine de `package-lock.json` avec `package.json` avant vérification pour éviter les conflits GitHub inutiles sur le lockfile. `npm run check:prod-files` refuse les binaires, dossiers de build, dépendances et fichiers locaux non-production suivis par Git. `npm run check:code-hygiene` refuse les placeholders legacy, fins de ligne CRLF, espaces invisibles, caractères de contrôle et espaces finaux. Les scripts `build`, `typecheck`, `test` et `verify` relancent automatiquement `npm ci` si les dépendances locales nécessaires manquent, ce qui évite les erreurs de type `Cannot find module 'vitest'` sur un environnement fraîchement cloné.
 
 ## Configuration optionnelle
 
