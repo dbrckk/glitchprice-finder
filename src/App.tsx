@@ -1,139 +1,19 @@
-import { memo, useCallback, useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { DealCard } from "./components/DealCard";
+import { InsightGrid } from "./components/InsightGrid";
 import { useDealTracker } from "./hooks/useDealTracker";
 import { buildDealsCsv, buildExportFilename } from "./utils/dealExport";
 import { buildDealInsights } from "./utils/dealInsights";
-import { getFreshnessLabel } from "./utils/dealFreshness";
-import { evaluateDealRisks } from "./utils/riskRules";
-import { DealCategory, DealSignal, DealSortMode } from "./types";
+import { DealCategory, DealSortMode } from "./types";
 import {
   CATEGORY_LABELS,
   SORT_LABELS,
   formatCurrency,
   formatRelativeTime,
-  getOpportunityScore,
-  getSavings,
 } from "./utils/dealScoring";
 
 const CATEGORIES: DealCategory[] = ["all", "tech", "home", "gaming", "fashion", "travel"];
 const SORT_MODES = Object.keys(SORT_LABELS) as DealSortMode[];
-
-function StockLabel({ stock }: { stock: DealSignal["stock"] }) {
-  const label = stock === "low" ? "Stock bas" : stock === "medium" ? "Stock moyen" : "Stock OK";
-  return <span className={`stock-pill stock-pill--${stock}`}>{label}</span>;
-}
-
-const DealCard = memo(function DealCard({
-  deal,
-  isTracked,
-  onToggleWatchlist,
-  onVerify,
-}: {
-  deal: DealSignal;
-  isTracked: boolean;
-  onToggleWatchlist: (dealId: string) => void;
-  onVerify: (dealId: string) => void;
-}) {
-  const maxPrice = Math.max(...deal.priceHistory.map((snapshot) => snapshot.price), deal.referencePrice);
-  const opportunityScore = getOpportunityScore(deal);
-  const risks = evaluateDealRisks(deal);
-  const freshnessLabel = getFreshnessLabel(deal);
-
-  return (
-    <article className={`deal-card ${isTracked ? "deal-card--tracked" : ""}`}>
-      <div className="deal-card__icon" aria-hidden="true">
-        {deal.image}
-      </div>
-
-      <div className="deal-card__content">
-        <div className="deal-card__header">
-          <div>
-            <p className="eyebrow">
-              {deal.merchant} • {CATEGORY_LABELS[deal.category]} • {formatRelativeTime(deal.detectedAt)}
-            </p>
-            <h3>{deal.title}</h3>
-          </div>
-          <div className="deal-badges">
-            <span className={`status status--${deal.verificationStatus}`}>
-              {deal.verificationStatus === "verified"
-                ? "Vérifié"
-                : deal.verificationStatus === "checking"
-                  ? "Check"
-                  : deal.verificationStatus === "expired"
-                    ? "Expiré"
-                    : "Suivi"}
-            </span>
-            <StockLabel stock={deal.stock} />
-            <span className="freshness-pill">{freshnessLabel}</span>
-          </div>
-        </div>
-
-        <div className="price-row">
-          <strong>{formatCurrency(deal.price, deal.currency)}</strong>
-          <span>{formatCurrency(deal.referencePrice, deal.currency)}</span>
-          <mark>-{deal.discountPercent}%</mark>
-        </div>
-
-        <div className="deal-score-grid" aria-label="Scores du deal">
-          <div>
-            <small>Confiance</small>
-            <strong>{deal.confidenceScore}%</strong>
-            <div className="confidence-meter" aria-hidden="true">
-              <span style={{ width: `${deal.confidenceScore}%` }} />
-            </div>
-          </div>
-          <div>
-            <small>Opportunité</small>
-            <strong>{opportunityScore}</strong>
-            <div className="confidence-meter confidence-meter--warm" aria-hidden="true">
-              <span style={{ width: `${Math.min(100, opportunityScore)}%` }} />
-            </div>
-          </div>
-          <div>
-            <small>Économie</small>
-            <strong>{formatCurrency(getSavings(deal), deal.currency)}</strong>
-          </div>
-        </div>
-
-        <div className="sparkline" aria-label="Historique du prix">
-          {deal.priceHistory.map((snapshot) => (
-            <span key={`${deal.id}-${snapshot.date}`} title={`${snapshot.date}: ${formatCurrency(snapshot.price, deal.currency)}`}>
-              <i style={{ height: `${Math.max(18, (snapshot.price / maxPrice) * 72)}px` }} />
-              <small>{snapshot.date}</small>
-            </span>
-          ))}
-        </div>
-
-        <div className="tag-row">
-          {deal.tags.map((tag) => (
-            <span key={tag}>#{tag}</span>
-          ))}
-        </div>
-
-        {risks.length > 0 && (
-          <div className="risk-row" aria-label="Signaux de risque">
-            {risks.map((risk) => (
-              <span key={risk.id} className={`risk-row__item risk-row__item--${risk.severity}`}>
-                {risk.label}
-              </span>
-            ))}
-          </div>
-        )}
-
-        <div className="deal-actions">
-          <a href={deal.url} target="_blank" rel="noreferrer">
-            Voir l'offre
-          </a>
-          <button type="button" onClick={() => onVerify(deal.id)} disabled={deal.verificationStatus === "checking"}>
-            {deal.verificationStatus === "checking" ? "Vérification..." : "Re-vérifier"}
-          </button>
-          <button type="button" className={isTracked ? "is-active" : ""} onClick={() => onToggleWatchlist(deal.id)}>
-            {isTracked ? "Retirer du suivi" : "Suivre"}
-          </button>
-        </div>
-      </div>
-    </article>
-  );
-});
 
 function App() {
   const {
@@ -268,28 +148,7 @@ function App() {
         </div>
       </section>
 
-      <section className="insight-grid" aria-label="Pilotage intelligence deals">
-        <article className="insight-card insight-card--primary">
-          <p className="eyebrow">Action recommandée</p>
-          <strong>{insights.recommendedAction}</strong>
-          <span>{insights.criticalDeals} alertes critiques • {insights.urgentLowStockDeals} stocks bas actifs</span>
-        </article>
-        <article className="insight-card">
-          <span>Meilleure opportunité</span>
-          <strong>{insights.bestDeal ? insights.bestDeal.title : "Aucun deal actif"}</strong>
-          <small>{insights.bestDeal ? `${insights.bestDeal.merchant} • score ${getOpportunityScore(insights.bestDeal)}` : "Lance un scan pour alimenter le cockpit."}</small>
-        </article>
-        <article className="insight-card">
-          <span>Qualité portefeuille</span>
-          <strong>{insights.averageConfidence}%</strong>
-          <small>{insights.verificationRate}% vérifiés • {insights.watchlistCoverage}% en watchlist</small>
-        </article>
-        <article className="insight-card">
-          <span>Marchand à prioriser</span>
-          <strong>{insights.topMerchant ? insights.topMerchant.merchant : "—"}</strong>
-          <small>{insights.topMerchant ? `${insights.topMerchant.dealCount} deals • ${formatCurrency(insights.topMerchant.potentialSavings)} d'économies` : "Aucune concentration détectée."}</small>
-        </article>
-      </section>
+      <InsightGrid insights={insights} />
 
       <section className="workspace-grid">
         <aside className="source-panel">
