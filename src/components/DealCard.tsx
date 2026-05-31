@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useCallback, useState } from "react";
 import { DealSignal } from "../types";
 import { CATEGORY_LABELS, formatCurrency, formatRelativeTime, getOpportunityScore, getSavings } from "../utils/dealScoring";
 import { getFreshnessLabel } from "../utils/dealFreshness";
@@ -17,10 +17,22 @@ function StockLabel({ stock }: { stock: DealSignal["stock"] }) {
 }
 
 export const DealCard = memo(function DealCard({ deal, isTracked, onToggleWatchlist, onVerify }: DealCardProps) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const maxPrice = Math.max(...deal.priceHistory.map((snapshot) => snapshot.price), deal.referencePrice);
   const opportunityScore = getOpportunityScore(deal);
   const risks = evaluateDealRisks(deal);
   const freshnessLabel = getFreshnessLabel(deal);
+
+  const copyDealLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(deal.url);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+
+    window.setTimeout(() => setCopyState("idle"), 1800);
+  }, [deal.url]);
 
   return (
     <article className={`deal-card ${isTracked ? "deal-card--tracked" : ""}`}>
@@ -109,6 +121,9 @@ export const DealCard = memo(function DealCard({ deal, isTracked, onToggleWatchl
           </a>
           <button type="button" onClick={() => onVerify(deal.id)} disabled={deal.verificationStatus === "checking"}>
             {deal.verificationStatus === "checking" ? "Vérification..." : "Re-vérifier"}
+          </button>
+          <button type="button" className={`copy-link-button copy-link-button--${copyState}`} onClick={copyDealLink}>
+            {copyState === "copied" ? "Lien copié" : copyState === "failed" ? "Copie impossible" : "Copier lien"}
           </button>
           <button type="button" className={isTracked ? "is-active" : ""} onClick={() => onToggleWatchlist(deal.id)}>
             {isTracked ? "Retirer du suivi" : "Suivre"}
