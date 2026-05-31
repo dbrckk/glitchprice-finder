@@ -9,7 +9,8 @@
     "test": "vitest run",
     "verify": "npm run check:conflicts && npm run typecheck && npm run test && npm run build && npm audit",
     "scan:live": "node scripts/scan-live-deals.mjs",
-    "check:conflicts": "node scripts/check-conflicts.mjs"
+    "check:conflicts": "node scripts/check-conflicts.mjs",
+    "scan:live:public": "node scripts/scan-live-deals.mjs --artifacts-dir=public"
   },
   "dependencies": {
     "react": "^18.2.0",

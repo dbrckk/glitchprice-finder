@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { FREE_SOURCES, INITIAL_DEALS } from "../data/mockDeals";
-import { buildDetectedDeal, createScanJob, getScanTickOutcome } from "../services/dealSimulation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { FREE_SOURCES } from "../data/freeSources";
 import { LIVE_DEAL_SOURCES } from "../data/sourceCatalog";
+import { verifyItem } from "../api/glitchApi";
 import {
   buildAlerts,
   calculateCategoryCounts,
@@ -13,19 +13,21 @@ import {
 import { DealCategory, DealFilters, DealSignal, LiveScanPolicy, ScanJob, ScannerEvent } from "../types";
 import { dedupeDeals } from "../utils/dealDedupe";
 import { sanitizeDeals, sanitizeWatchlist } from "../utils/dealValidation";
+import { fetchLiveDealFeed } from "../services/liveDealFeed";
 import { safeReadJson, safeWriteJson } from "../utils/storage";
 
 const STORAGE_KEY = "glitchprice.trackedDeals.v2";
 const LEGACY_STORAGE_KEY = "glitchprice.trackedDeals.v1";
 const WATCHLIST_KEY = "glitchprice.watchlist.v1";
-const MAX_DEALS = 24;
+const MAX_DEALS = 36;
 const MAX_EVENTS = 8;
+const LIVE_FEED_PATH = `${import.meta.env.BASE_URL}live-deals.json`;
 
 const LIVE_SCAN_POLICY: LiveScanPolicy = {
   franceDeliveryRequired: true,
   minimumDiscountPercent: 35,
   sourceCount: LIVE_DEAL_SOURCES.length,
-  lastLocalScanArtifact: "artifacts/live-deals.json",
+  lastLocalScanArtifact: "public/live-deals.json",
 };
 
 const DEFAULT_FILTERS: DealFilters = {
@@ -41,7 +43,7 @@ function readInitialDeals() {
   if (v2Deals.length) return dedupeDeals(v2Deals);
 
   const legacyDeals = sanitizeDeals(safeReadJson<unknown>(LEGACY_STORAGE_KEY, null), []);
-  return legacyDeals.length ? dedupeDeals(legacyDeals) : INITIAL_DEALS;
+  return legacyDeals.length ? dedupeDeals(legacyDeals) : [];
 }
 
 function buildEvent(label: string, severity: ScannerEvent["severity"] = "info"): ScannerEvent {
@@ -53,6 +55,18 @@ function buildEvent(label: string, severity: ScannerEvent["severity"] = "info"):
   };
 }
 
+function createLiveLoadJob(): ScanJob {
+  const now = new Date();
+  return {
+    id: `live-load-${now.getTime()}`,
+    createdAt: now.toISOString(),
+    status: "running",
+    progress: 15,
+    scannedSources: 0,
+    detectedDeals: 0,
+  };
+}
+
 export function useDealTracker() {
   const [deals, setDeals] = useState<DealSignal[]>(readInitialDeals);
   const [watchlist, setWatchlist] = useState<string[]>(() => sanitizeWatchlist(safeReadJson<unknown>(WATCHLIST_KEY, [])));
@@ -60,9 +74,8 @@ export function useDealTracker() {
   const [filters, setFilters] = useState<DealFilters>(DEFAULT_FILTERS);
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
   const [scanEvents, setScanEvents] = useState<ScannerEvent[]>(() => [
-    buildEvent("Pipeline local prêt : sources publiques + mocks premium chargés.", "success"),
+    buildEvent("Pipeline réel prêt : charge le dernier artefact live France.", "success"),
   ]);
-  const intervalRef = useRef<number | null>(null);
   const verificationTimeoutsRef = useRef<number[]>([]);
 
   useEffect(() => {
@@ -75,14 +88,46 @@ export function useDealTracker() {
 
   useEffect(() => {
     return () => {
-      if (intervalRef.current) window.clearInterval(intervalRef.current);
       verificationTimeoutsRef.current.forEach((timeoutId) => window.clearTimeout(timeoutId));
     };
   }, []);
 
-  const pushEvent = (label: string, severity: ScannerEvent["severity"] = "info") => {
+  const pushEvent = useCallback((label: string, severity: ScannerEvent["severity"] = "info") => {
     setScanEvents((currentEvents) => [buildEvent(label, severity), ...currentEvents].slice(0, MAX_EVENTS));
-  };
+  }, []);
+
+  const refreshLiveDeals = useCallback(async () => {
+    setScanJob(createLiveLoadJob());
+    pushEvent("Chargement du dernier scan réel France depuis l'artefact public.", "info");
+
+    try {
+      const feed = await fetchLiveDealFeed(`${LIVE_FEED_PATH}?t=${Date.now()}`);
+      const nextDeals = dedupeDeals(feed.deals).slice(0, MAX_DEALS);
+      setDeals(nextDeals);
+      setScanJob((currentJob) => ({
+        ...(currentJob ?? createLiveLoadJob()),
+        status: "completed",
+        progress: 100,
+        scannedSources: feed.sourceReports.length || LIVE_DEAL_SOURCES.length,
+        detectedDeals: nextDeals.length,
+      }));
+      pushEvent(`${nextDeals.length} vrais deals live chargés depuis le scan du ${new Date(feed.scannedAt).toLocaleString("fr-FR")}.`, "success");
+      feed.errors.forEach((error) => pushEvent(error, "warning"));
+    } catch (error) {
+      setScanJob((currentJob) => ({
+        ...(currentJob ?? createLiveLoadJob()),
+        status: "completed",
+        progress: 100,
+        scannedSources: 0,
+        detectedDeals: 0,
+      }));
+      pushEvent(error instanceof Error ? error.message : "Impossible de charger le flux live.", "warning");
+    }
+  }, [pushEvent]);
+
+  useEffect(() => {
+    void refreshLiveDeals();
+  }, [refreshLiveDeals]);
 
   const filteredDeals = useMemo(() => {
     const scopedDeals = activeCategory === "all" ? deals : deals.filter((deal) => deal.category === activeCategory);
@@ -103,52 +148,11 @@ export function useDealTracker() {
     setFilters(DEFAULT_FILTERS);
   };
 
-  const resetDemoData = () => {
-    setDeals(INITIAL_DEALS);
+  const clearLocalDeals = () => {
+    setDeals([]);
     setWatchlist([]);
     setScanJob(null);
-    pushEvent("Données de démonstration restaurées.", "warning");
-  };
-
-  const startFreeScan = () => {
-    if (intervalRef.current) window.clearInterval(intervalRef.current);
-
-    const job = createScanJob();
-
-    setScanJob(job);
-    pushEvent("Scan free-tier lancé : crawl simulé, scoring local, zéro clé API.", "info");
-
-    let tick = 0;
-    intervalRef.current = window.setInterval(() => {
-      tick += 1;
-      const { progress, scannedSources, shouldAddDeal } = getScanTickOutcome(tick, FREE_SOURCES.length);
-
-      if (shouldAddDeal) {
-        const detectedDeal = buildDetectedDeal(tick);
-        setDeals((currentDeals) => dedupeDeals([detectedDeal, ...currentDeals]).slice(0, MAX_DEALS));
-        pushEvent(`${detectedDeal.merchant}: ${detectedDeal.discountPercent}% détecté sur ${detectedDeal.title}.`, "success");
-      } else {
-        pushEvent(`${scannedSources}/${FREE_SOURCES.length} sources inspectées sans doublon critique.`, "info");
-      }
-
-      setScanJob((currentJob) => {
-        if (!currentJob) return currentJob;
-
-        return {
-          ...currentJob,
-          status: progress >= 100 ? "completed" : "running",
-          progress,
-          scannedSources,
-          detectedDeals: currentJob.detectedDeals + (shouldAddDeal ? 1 : 0),
-        };
-      });
-
-      if (progress >= 100 && intervalRef.current) {
-        window.clearInterval(intervalRef.current);
-        intervalRef.current = null;
-        pushEvent("Scan terminé : deals triés et alertes recalculées.", "success");
-      }
-    }, 620);
+    pushEvent("Cache local vidé. Recharge le dernier artefact live pour récupérer des deals réels.", "warning");
   };
 
   const toggleWatchlist = (dealId: string) => {
@@ -161,7 +165,10 @@ export function useDealTracker() {
     );
   };
 
-  const verifyDeal = (dealId: string) => {
+  const verifyDeal = async (dealId: string) => {
+    const dealToVerify = deals.find((deal) => deal.id === dealId);
+    if (!dealToVerify) return;
+
     setDeals((currentDeals) =>
       currentDeals.map((deal) =>
         deal.id === dealId
@@ -169,25 +176,33 @@ export function useDealTracker() {
           : deal,
       ),
     );
-    pushEvent("Re-vérification lancée sur la fiche marchand.", "info");
+    pushEvent("Vérification réelle envoyée au backend de validation.", "info");
 
-    const timeoutId = window.setTimeout(() => {
+    try {
+      const result = await verifyItem(dealToVerify.url);
       setDeals((currentDeals) =>
         currentDeals.map((deal) =>
           deal.id === dealId
             ? {
                 ...deal,
-                verificationStatus: "verified",
-                confidenceScore: calculateConfidence({ ...deal, verificationStatus: "verified" }),
-                detectedAt: new Date().toISOString(),
+                verificationStatus: result.status === "verified" ? "verified" : "expired",
+                confidenceScore: result.status === "verified" ? calculateConfidence({ ...deal, verificationStatus: "verified" }) : Math.min(deal.confidenceScore, 55),
+                detectedAt: result.status === "verified" ? new Date().toISOString() : deal.detectedAt,
               }
             : deal,
         ),
       );
-      pushEvent("Offre confirmée : score de confiance rafraîchi.", "success");
-    }, 850);
-
-    verificationTimeoutsRef.current.push(timeoutId);
+      pushEvent(result.reason, result.status === "verified" ? "success" : "warning");
+    } catch (error) {
+      setDeals((currentDeals) =>
+        currentDeals.map((deal) =>
+          deal.id === dealId
+            ? { ...deal, verificationStatus: "tracked", confidenceScore: Math.min(deal.confidenceScore, 74) }
+            : deal,
+        ),
+      );
+      pushEvent(error instanceof Error ? error.message : "Vérification réelle indisponible.", "warning");
+    }
   };
 
   return {
@@ -206,8 +221,8 @@ export function useDealTracker() {
     setActiveCategory,
     updateFilters,
     clearFilters,
-    resetDemoData,
-    startFreeScan,
+    resetDemoData: clearLocalDeals,
+    startFreeScan: refreshLiveDeals,
     toggleWatchlist,
     verifyDeal,
   };

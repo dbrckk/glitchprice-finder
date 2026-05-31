@@ -55,20 +55,20 @@ function App() {
     <main className="app-shell">
       <section className="hero-panel">
         <div className="hero-panel__copy">
-          <p className="eyebrow">GlitchPrice Finder • moteur 100% free-tier ready</p>
+          <p className="eyebrow">GlitchPrice Finder • scanner réel France</p>
           <h1>Radar autonome de promotions extrêmes et erreurs de prix.</h1>
           <p>
-            Centralise les signaux, score les opportunités, priorise les alertes et simule un scan multi-sources gratuit
-            avec persistance locale en attendant le branchement Supabase/Firebase free-tier.
+            Centralise de vrais signaux live, score les opportunités, priorise les alertes et recharge le dernier scan public
+            généré côté Node à partir de sources publiques actives.
           </p>
           <div className="hero-actions">
             <button type="button" onClick={startFreeScan} disabled={scanJob?.status === "running"}>
-              {scanJob?.status === "running" ? "Scan en cours..." : "Lancer un scan gratuit"}
+              {scanJob?.status === "running" ? "Chargement live..." : "Recharger les deals réels"}
             </button>
             <button type="button" className="button-secondary" onClick={resetDemoData}>
-              Réinitialiser la démo
+              Vider le cache local
             </button>
-            <span>{sources.length} sources publiques configurées</span>
+            <span>{sources.length} sources réelles configurées</span>
           </div>
         </div>
 
@@ -101,8 +101,8 @@ function App() {
         </aside>
       </section>
 
-      <section className="live-policy-panel" aria-label="Politique scan live">
-        <strong>Scan live France</strong>
+      <section className="live-policy-panel" aria-label="Politique scan réel">
+        <strong>Scan réel France</strong>
         <span>Livraison France obligatoire</span>
         <span>Remise minimum {liveScanPolicy.minimumDiscountPercent}%</span>
         <span>{liveScanPolicy.sourceCount} sources publiques</span>
@@ -257,7 +257,7 @@ function App() {
             ) : (
               <div className="empty-state">
                 <strong>Aucun deal ne correspond aux filtres.</strong>
-                <p>Diminue la remise minimale, désactive les filtres stricts ou lance un nouveau scan gratuit.</p>
+                <p>Diminue la remise minimale, désactive les filtres stricts ou recharge le dernier scan réel.</p>
                 <button type="button" onClick={clearFilters}>Réinitialiser les filtres</button>
               </div>
             )}
