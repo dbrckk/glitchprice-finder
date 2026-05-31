@@ -23,7 +23,7 @@ export function formatCurrency(value: number, currency: DealSignal["currency"] =
     style: "currency",
     currency,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(value).replace(/\u00a0/g, " ");
 }
 
 export function formatRelativeTime(isoDate: string) {

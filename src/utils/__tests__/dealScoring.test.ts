@@ -62,7 +62,7 @@ const defaultFilters: DealFilters = {
 
 describe("dealScoring", () => {
   it("formats prices and computes deterministic savings", () => {
-    expect(formatCurrency(1299)).toBe("1 299 €");
+    expect(formatCurrency(1299)).toBe("1 299 €");
     expect(getSavings(baseDeal)).toBe(800);
   });
 
