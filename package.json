@@ -16,7 +16,8 @@
     "check:conflicts": "npm run check:merge",
     "scan:live:public": "node scripts/scan-live-deals.mjs --artifacts-dir=public",
     "check:real-feed": "node scripts/check-real-feed.mjs",
-    "check:merge": "node scripts/check-conflicts.mjs"
+    "check:merge": "node scripts/check-conflicts.mjs",
+    "resolve:pr-conflicts": "node scripts/resolve-pr-conflicts.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",
