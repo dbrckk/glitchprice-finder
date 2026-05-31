@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FREE_SOURCES } from "../data/freeSources";
 import { LIVE_DEAL_SOURCES } from "../data/sourceCatalog";
-import { verifyItem } from "../api/glitchApi";
+import { verifyDealSignal } from "../services/dealVerifier";
 import {
   buildAlerts,
   calculateCategoryCounts,
@@ -205,23 +205,28 @@ export function useDealTracker() {
           : deal,
       ),
     );
-    pushEvent("Vérification réelle envoyée au backend de validation.", "info");
+    pushEvent("Vérification lancée: API si configurée, pré-check local sinon.", "info");
 
     try {
-      const result = await verifyItem(dealToVerify.url);
+      const result = await verifyDealSignal(dealToVerify);
       setDeals((currentDeals) =>
         currentDeals.map((deal) =>
           deal.id === dealId
             ? {
                 ...deal,
-                verificationStatus: result.status === "verified" ? "verified" : "expired",
-                confidenceScore: result.status === "verified" ? calculateConfidence({ ...deal, verificationStatus: "verified" }) : Math.min(deal.confidenceScore, 55),
+                verificationStatus: result.status === "verified" ? "verified" : result.status === "needs_api" ? "tracked" : "expired",
+                confidenceScore:
+                  result.status === "verified"
+                    ? calculateConfidence({ ...deal, verificationStatus: "verified" })
+                    : result.status === "needs_api"
+                      ? Math.max(deal.confidenceScore, 76)
+                      : Math.min(deal.confidenceScore, 55),
                 detectedAt: result.status === "verified" ? new Date().toISOString() : deal.detectedAt,
               }
             : deal,
         ),
       );
-      pushEvent(result.reason, result.status === "verified" ? "success" : "warning");
+      pushEvent(result.reason, result.status === "verified" ? "success" : result.status === "needs_api" ? "info" : "warning");
     } catch (error) {
       setDeals((currentDeals) =>
         currentDeals.map((deal) =>

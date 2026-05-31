@@ -1,9 +1,22 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import { searchGlitchItems, verifyItem } from "./glitchApi";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isGlitchApiConfigured, searchGlitchItems, verifyItem } from "./glitchApi";
+
+const API_URL = "https://api.glitchprice.test";
 
 describe("glitchApi", () => {
+  beforeEach(() => {
+    import.meta.env.VITE_GLITCHPRICE_API_URL = API_URL;
+  });
+
   afterEach(() => {
+    import.meta.env.VITE_GLITCHPRICE_API_URL = "";
     vi.restoreAllMocks();
+  });
+
+  it("detects optional API configuration", () => {
+    expect(isGlitchApiConfigured()).toBe(true);
+    import.meta.env.VITE_GLITCHPRICE_API_URL = "";
+    expect(isGlitchApiConfigured()).toBe(false);
   });
 
   it("encodes search params and filters malformed items", async () => {
@@ -28,6 +41,7 @@ describe("glitchApi", () => {
     const items = await searchGlitchItems("tech", "ssd nvme", "amazon.fr/promos");
     const requestedUrl = new URL(String(fetchMock.mock.calls[0]?.[0]));
 
+    expect(requestedUrl.origin).toBe(API_URL);
     expect(requestedUrl.pathname).toBe("/search");
     expect(requestedUrl.searchParams.get("keyword")).toBe("ssd nvme");
     expect(requestedUrl.searchParams.get("website")).toBe("amazon.fr/promos");
@@ -41,6 +55,7 @@ describe("glitchApi", () => {
     await expect(verifyItem("https://example.com/deal")).resolves.toEqual({
       status: "unavailable",
       reason: "Réponse de vérification invalide.",
+      source: "api",
     });
   });
 
@@ -48,5 +63,11 @@ describe("glitchApi", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status: 503 }));
 
     await expect(searchGlitchItems("tech", "gpu", "fnac")).rejects.toThrow("Erreur backend (503)");
+  });
+
+  it("fails fast when the optional backend API is not configured", async () => {
+    import.meta.env.VITE_GLITCHPRICE_API_URL = "";
+
+    await expect(searchGlitchItems("tech", "gpu", "fnac")).rejects.toThrow("API GlitchPrice non configurée");
   });
 });

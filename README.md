@@ -32,7 +32,7 @@ npm run resolve:pr-conflicts -- --base=main --branch=<branche-pr> --push
 
 ## Configuration optionnelle
 
-Copie `.env.example` vers `.env.local` si tu veux connecter un backend gratuit compatible avec les helpers `src/api/glitchApi.ts`. Sans configuration, le dashboard charge le dernier artefact réel généré dans `public/live-deals.json`.
+Copie `.env.example` vers `.env.local` uniquement quand un backend gratuit compatible avec les helpers `src/api/glitchApi.ts` sera prêt. Sans configuration API, le dashboard charge le dernier artefact réel généré dans `public/live-deals.json` et utilise une pré-vérification locale honnête qui ne prétend pas confirmer le panier marchand final.
 
 ## Scan live gratuit
 
@@ -46,7 +46,7 @@ Le workflow GitHub Actions `Refresh Live Deals` exécute `npm run scan:live:publ
 
 ## Prochain branchement recommandé
 
-Ajouter un backend serverless gratuit (Supabase Edge Functions, Firebase Functions free-tier ou Render free-tier si disponible) avec Playwright/Cheerio et stockage Supabase free-tier. Le flux public peut être remplacé progressivement par une API sans changer le modèle métier principal.
+Ajouter ensuite un backend serverless gratuit (Supabase Edge Functions, Firebase Functions free-tier ou Render free-tier si disponible) avec Playwright/Cheerio et stockage Supabase free-tier. Le contrat frontend est déjà prêt : renseigner `VITE_GLITCHPRICE_API_URL` active `/verify` et `/search`, sinon la pré-vérification locale continue de fonctionner sans clé API.
 
 ## Merge GitHub
 
