@@ -1,0 +1,5 @@
+# Generated files: keep GitHub reviews compact and avoid noisy diffs.
+package-lock.json linguist-generated=true
+public/live-deals.json linguist-generated=true -diff
+public/live-deals.csv linguist-generated=true -diff merge=union
+artifacts/** linguist-generated=true -diff
