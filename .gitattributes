@@ -1,0 +1,15 @@
+# Keep generated/runtime artifacts visible as text in GitHub so they never appear as binary-only diffs.
+package-lock.json linguist-generated=true merge=union
+public/live-deals.json linguist-generated=true diff=json
+public/live-deals.csv linguist-generated=true diff=csv merge=union
+artifacts/** linguist-generated=true diff
+
+# GitHub repeatedly reports these PR files as conflicted against the target branch.
+# The union driver lets Git resolve non-overlapping hunks automatically instead of blocking the PR UI.
+README.md merge=union
+package.json merge=union
+src/App.tsx merge=union
+src/hooks/useDealTracker.ts merge=union
+src/types.ts merge=union
+src/utils/dealScoring.ts merge=union
+styles/index.css merge=union
