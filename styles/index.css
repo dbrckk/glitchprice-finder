@@ -210,6 +210,104 @@ button:disabled {
   letter-spacing: -0.04em;
 }
 
+.priority-queue {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 22px;
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.13), rgba(15, 23, 42, 0.84));
+  padding: 20px;
+  box-shadow: 0 24px 90px rgba(14, 165, 233, 0.1);
+}
+
+.priority-queue .section-heading--inline > span {
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  border-radius: 999px;
+  color: #bae6fd;
+  background: rgba(8, 47, 73, 0.42);
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.priority-queue__list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.priority-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  border: 1px solid var(--stroke);
+  border-radius: 22px;
+  background: rgba(2, 6, 23, 0.48);
+  padding: 16px;
+}
+
+.priority-card__rank {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 16px;
+  color: #07111f;
+  background: linear-gradient(135deg, var(--accent-2), var(--success));
+  font-weight: 1000;
+}
+
+.priority-card__body {
+  display: grid;
+  gap: 5px;
+}
+
+.priority-card__body p,
+.priority-card__body strong,
+.priority-card__body small {
+  margin: 0;
+}
+
+.priority-card__body p,
+.priority-card__body small {
+  color: var(--text-soft);
+}
+
+.priority-card__body strong {
+  line-height: 1.35;
+}
+
+.priority-card__actions {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.priority-card__actions a,
+.priority-card__actions button {
+  border: 1px solid var(--stroke);
+  border-radius: 999px;
+  color: white;
+  background: rgba(15, 23, 42, 0.84);
+  padding: 9px 13px;
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.priority-card__actions button.is-active {
+  color: #07111f;
+  background: var(--success);
+}
+
+@media (max-width: 980px) {
+  .priority-queue__list {
+    grid-template-columns: 1fr;
+  }
+}
+
 .workspace-grid {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr);

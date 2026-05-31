@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { DealCard } from "./components/DealCard";
 import { InsightGrid } from "./components/InsightGrid";
+import { PriorityQueue } from "./components/PriorityQueue";
 import { useDealTracker } from "./hooks/useDealTracker";
 import { buildDealsCsv, buildExportFilename } from "./utils/dealExport";
 import { buildDealInsights } from "./utils/dealInsights";
@@ -10,6 +11,7 @@ import {
   SORT_LABELS,
   formatCurrency,
   formatRelativeTime,
+  sortDeals,
 } from "./utils/dealScoring";
 
 const CATEGORIES: DealCategory[] = ["all", "tech", "home", "gaming", "fashion", "travel"];
@@ -51,6 +53,7 @@ function App() {
     URL.revokeObjectURL(downloadUrl);
   }, [deals]);
   const insights = useMemo(() => buildDealInsights(allDeals, watchlist), [allDeals, watchlist]);
+  const priorityDeals = useMemo(() => sortDeals(allDeals, "opportunity").slice(0, 3), [allDeals]);
   const feedFreshnessLabel = liveFeedStatus.scannedAt ? formatRelativeTime(liveFeedStatus.scannedAt) : "Non chargé";
   const refreshLabel = liveFeedStatus.lastRefreshAt ? formatRelativeTime(liveFeedStatus.lastRefreshAt) : "En attente";
   const feedErrorLabel = liveFeedStatus.errors.length ? `${liveFeedStatus.errors.length} alerte(s)` : "Aucune alerte";
@@ -176,6 +179,8 @@ function App() {
       </section>
 
       <InsightGrid insights={insights} />
+
+      <PriorityQueue deals={priorityDeals} watchlist={watchlist} onToggleWatchlist={toggleWatchlist} />
 
       <section className="workspace-grid">
         <aside className="source-panel">
