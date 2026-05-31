@@ -45,6 +45,7 @@ const EMPTY_LIVE_FEED_STATUS: LiveFeedStatus = {
   healthySources: 0,
   failedSources: 0,
   errors: [],
+  sourceDetails: [],
 };
 
 function readInitialDeals() {
@@ -123,6 +124,7 @@ export function useDealTracker() {
         healthySources,
         failedSources,
         errors: feed.errors,
+        sourceDetails: feed.sourceReports,
       });
       setScanJob((currentJob) => ({
         ...(currentJob ?? createLiveLoadJob()),

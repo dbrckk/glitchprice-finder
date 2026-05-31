@@ -2,6 +2,7 @@ import { useCallback, useMemo } from "react";
 import { DealCard } from "./components/DealCard";
 import { InsightGrid } from "./components/InsightGrid";
 import { PriorityQueue } from "./components/PriorityQueue";
+import { SourceHealthPanel } from "./components/SourceHealthPanel";
 import { useDealTracker } from "./hooks/useDealTracker";
 import { buildDealsCsv, buildExportFilename } from "./utils/dealExport";
 import { buildDealInsights } from "./utils/dealInsights";
@@ -181,6 +182,8 @@ function App() {
       <InsightGrid insights={insights} />
 
       <PriorityQueue deals={priorityDeals} watchlist={watchlist} onToggleWatchlist={toggleWatchlist} />
+
+      <SourceHealthPanel reports={liveFeedStatus.sourceDetails} />
 
       <section className="workspace-grid">
         <aside className="source-panel">

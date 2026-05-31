@@ -77,6 +77,15 @@ export interface LiveScanPolicy {
   lastLocalScanArtifact: string;
 }
 
+export interface LiveFeedSourceReport {
+  sourceId: string;
+  sourceName: string;
+  status: "ok" | "error";
+  results: number;
+  durationMs: number;
+  error?: string;
+}
+
 export interface LiveFeedStatus {
   scannedAt: string | null;
   lastRefreshAt: string | null;
@@ -84,6 +93,7 @@ export interface LiveFeedStatus {
   healthySources: number;
   failedSources: number;
   errors: string[];
+  sourceDetails: LiveFeedSourceReport[];
 }
 
 export interface TrackerMetrics {
