@@ -22,10 +22,11 @@ npm run scan:live
 npm run scan:live:public
 npm run check:real-feed
 npm run check:merge
+npm run check:prod-files
 npm run resolve:pr-conflicts -- --base=main --push
 ```
 
-Les scripts `build`, `typecheck`, `test` et `verify` relancent automatiquement `npm ci` si les dépendances locales nécessaires manquent, ce qui évite les erreurs de type `Cannot find module 'vitest'` sur un environnement fraîchement cloné.
+`npm run check:prod-files` refuse les binaires, dossiers de build, dépendances et fichiers locaux non-production suivis par Git. Les scripts `build`, `typecheck`, `test` et `verify` relancent automatiquement `npm ci` si les dépendances locales nécessaires manquent, ce qui évite les erreurs de type `Cannot find module 'vitest'` sur un environnement fraîchement cloné.
 
 ## Configuration optionnelle
 
@@ -47,4 +48,4 @@ Ajouter un backend serverless gratuit (Supabase Edge Functions, Firebase Functio
 
 ## Merge GitHub
 
-Avant de mettre à jour la branche sur GitHub, lance `npm run check:merge` puis `npm run verify`. Si GitHub affiche encore des conflits sur la PR, utilise `npm run resolve:pr-conflicts -- --base=main --push` depuis une copie avec le remote `origin`, ou lance le workflow manuel `Resolve PR Conflicts`. Le dépôt inclut aussi `.gitattributes` pour réduire les conflits sur les artefacts générés (`public/live-deals.*`, `package-lock.json`) et `docs/merge-readiness.md` résume la procédure de résolution si GitHub signale encore un conflit de branche.
+Avant de mettre à jour la branche sur GitHub, lance `npm run check:merge` puis `npm run verify`. Si GitHub affiche encore des conflits sur la PR, utilise `npm run resolve:pr-conflicts -- --base=main --push` depuis une copie avec le remote `origin`, ou lance le workflow manuel `Resolve PR Conflicts`. Le dépôt inclut aussi `.gitattributes` pour réduire les conflits sur les artefacts générés (`public/live-deals.*`, `package-lock.json`) sans masquer ces fichiers en diff binaire et `docs/merge-readiness.md` résume la procédure de résolution si GitHub signale encore un conflit de branche.
