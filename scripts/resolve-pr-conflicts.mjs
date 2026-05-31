@@ -1,0 +1,180 @@
+import { execFileSync, spawnSync } from "node:child_process";
+
+const DEFAULT_BASE_BRANCH = "main";
+const DEFAULT_REMOTE = "origin";
+const CONFLICT_POLICY_FILES = new Set([
+  "README.md",
+  "package-lock.json",
+  "package.json",
+  "src/App.tsx",
+  "src/hooks/useDealTracker.ts",
+  "src/types.ts",
+  "src/utils/dealScoring.ts",
+  "styles/index.css",
+]);
+const LOCK_SYNC_SCRIPT = "scripts/sync-package-lock.mjs";
+
+function parseArgs(argv) {
+  const args = { base: DEFAULT_BASE_BRANCH, remote: DEFAULT_REMOTE, branch: "", push: false };
+  for (const arg of argv) {
+    if (arg === "--help" || arg === "-h") {
+      printHelp();
+      process.exit(0);
+    }
+    if (arg === "--push") {
+      args.push = true;
+      continue;
+    }
+    if (arg.startsWith("--base=")) {
+      args.base = arg.slice("--base=".length).trim() || DEFAULT_BASE_BRANCH;
+      continue;
+    }
+    if (arg.startsWith("--remote=")) {
+      args.remote = arg.slice("--remote=".length).trim() || DEFAULT_REMOTE;
+      continue;
+    }
+    if (arg.startsWith("--branch=")) {
+      args.branch = arg.slice("--branch=".length).trim();
+      continue;
+    }
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+  return args;
+}
+
+function printHelp() {
+  console.log(`Usage: node scripts/resolve-pr-conflicts.mjs [--base=main] [--remote=origin] [--branch=work] [--push]\n\nFetches the target branch, merges it into the current branch, resolves known PR conflict files with the current branch versions, runs verification, and optionally pushes the merge commit.`);
+}
+
+function git(args, options = {}) {
+  return execFileSync("git", args, { encoding: "utf8", stdio: options.stdio ?? "pipe" }).trim();
+}
+
+function hasGitConfig(key) {
+  try {
+    return Boolean(git(["config", "--get", key]));
+  } catch {
+    return false;
+  }
+}
+
+function ensureGitIdentity() {
+  if (!hasGitConfig("user.name")) {
+    git(["config", "user.name", "glitchprice-merge-bot"], { stdio: "inherit" });
+  }
+
+  if (!hasGitConfig("user.email")) {
+    git(["config", "user.email", "glitchprice-merge-bot@users.noreply.github.com"], { stdio: "inherit" });
+  }
+}
+
+function run(command, args) {
+  console.log(`$ ${command} ${args.join(" ")}`);
+  const result = spawnSync(command, args, { stdio: "inherit" });
+  if (result.status !== 0) {
+    throw new Error(`${command} ${args.join(" ")} failed with exit code ${result.status}`);
+  }
+}
+
+function getWorkingTreeStatus() {
+  return git(["status", "--porcelain"]);
+}
+
+function assertCleanWorkingTree() {
+  const status = getWorkingTreeStatus();
+  if (status) {
+    throw new Error(`Working tree must be clean before resolving PR conflicts:\n${status}`);
+  }
+}
+
+function fileExists(filePath) {
+  try {
+    git(["ls-files", "--error-unmatch", filePath]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function syncPackageLock() {
+  if (!fileExists(LOCK_SYNC_SCRIPT) || !fileExists("package-lock.json")) {
+    return;
+  }
+
+  run("node", [LOCK_SYNC_SCRIPT]);
+  run("git", ["add", "--", "package-lock.json"]);
+}
+
+function commitDirtyWorktree(message) {
+  if (!getWorkingTreeStatus()) {
+    return false;
+  }
+
+  run("git", ["add", "-A"]);
+  run("git", ["commit", "-m", message]);
+  return true;
+}
+
+function getCurrentBranch() {
+  return git(["branch", "--show-current"]);
+}
+
+function getResolutionBranch(explicitBranch) {
+  return explicitBranch || getCurrentBranch() || process.env.GITHUB_HEAD_REF || process.env.GITHUB_REF_NAME || "";
+}
+
+function getUnmergedFiles() {
+  const output = git(["diff", "--name-only", "--diff-filter=U"]);
+  return output ? output.split("\n").filter(Boolean) : [];
+}
+
+function resolveKnownConflicts() {
+  const unmergedFiles = getUnmergedFiles();
+  const unsupportedFiles = unmergedFiles.filter((file) => !CONFLICT_POLICY_FILES.has(file));
+
+  if (unsupportedFiles.length) {
+    throw new Error(`Unsupported conflict files require manual review:\n${unsupportedFiles.join("\n")}`);
+  }
+
+  for (const file of unmergedFiles) {
+    console.log(`Resolving ${file} with the current branch version.`);
+    git(["checkout", "--ours", "--", file], { stdio: "inherit" });
+    git(["add", "--", file], { stdio: "inherit" });
+  }
+
+  return unmergedFiles.length;
+}
+
+const args = parseArgs(process.argv.slice(2));
+assertCleanWorkingTree();
+
+ensureGitIdentity();
+
+const branch = getResolutionBranch(args.branch);
+if (!branch) {
+  throw new Error("Cannot resolve PR conflicts without a branch name. Pass --branch=<pr-branch> when running from a detached checkout.");
+}
+
+run("git", ["fetch", args.remote, args.base]);
+const mergeResult = spawnSync("git", ["merge", "--no-edit", `${args.remote}/${args.base}`], { stdio: "inherit" });
+
+if (mergeResult.status !== 0) {
+  const resolvedCount = resolveKnownConflicts();
+  if (!resolvedCount) {
+    throw new Error("Merge failed but no supported unmerged files were found.");
+  }
+  syncPackageLock();
+  run("git", ["commit", "--no-edit"]);
+} else {
+  syncPackageLock();
+  commitDirtyWorktree("Sync package lock after target branch merge");
+}
+
+run("npm", ["run", "verify"]);
+commitDirtyWorktree("Apply verification updates after PR conflict resolution");
+
+if (args.push) {
+  run("git", ["push", args.remote, `HEAD:${branch}`]);
+}
+
+console.log(`PR conflict resolution completed on ${branch}.`);
