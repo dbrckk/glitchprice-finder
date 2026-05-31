@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FREE_SOURCES, INITIAL_DEALS } from "../data/mockDeals";
+import { buildDetectedDeal, createScanJob, getScanTickOutcome } from "../services/dealSimulation";
 import { LIVE_DEAL_SOURCES } from "../data/sourceCatalog";
 import {
   buildAlerts,
@@ -35,59 +36,6 @@ const DEFAULT_FILTERS: DealFilters = {
   sortMode: "opportunity",
 };
 
-const SCAN_TEMPLATES = [
-  {
-    title: "Apple Watch Ultra 2 titane",
-    merchant: "Amazon FR",
-    category: "tech" as const,
-    sourceId: "amazon-fr-promos",
-    image: "⌚",
-    referencePrice: 899,
-    basePrice: 499,
-    tags: ["coupon-hidden", "low-stock"],
-  },
-  {
-    title: "Canapé convertible scandinave 3 places",
-    merchant: "Cdiscount",
-    category: "home" as const,
-    sourceId: "cdiscount-bons-plans",
-    image: "🛋️",
-    referencePrice: 699,
-    basePrice: 279,
-    tags: ["destockage", "code-promo"],
-  },
-  {
-    title: "Pack PlayStation 5 Slim + 2 manettes",
-    merchant: "Dealabs signalement",
-    category: "gaming" as const,
-    sourceId: "dealabs-hot",
-    image: "🕹️",
-    referencePrice: 619,
-    basePrice: 389,
-    tags: ["community-hot", "bundle"],
-  },
-  {
-    title: "Sneakers premium cuir pleine fleur",
-    merchant: "Zalando Privé",
-    category: "fashion" as const,
-    sourceId: "zalando-prive",
-    image: "👟",
-    referencePrice: 220,
-    basePrice: 74,
-    tags: ["vente-privee", "size-alert"],
-  },
-  {
-    title: "Vol Paris - Tokyo aller-retour printemps",
-    merchant: "Google Flights signal",
-    category: "travel" as const,
-    sourceId: "google-flights-watch",
-    image: "✈️",
-    referencePrice: 845,
-    basePrice: 418,
-    tags: ["fare-drop", "date-flexible"],
-  },
-];
-
 function readInitialDeals() {
   const v2Deals = sanitizeDeals(safeReadJson<unknown>(STORAGE_KEY, null), []);
   if (v2Deals.length) return dedupeDeals(v2Deals);
@@ -102,51 +50,6 @@ function buildEvent(label: string, severity: ScannerEvent["severity"] = "info"):
     timestamp: new Date().toISOString(),
     label,
     severity,
-  };
-}
-
-function buildDetectedDeal(scanIndex: number): DealSignal {
-  const template = SCAN_TEMPLATES[scanIndex % SCAN_TEMPLATES.length];
-  if (!template) throw new Error("Aucun template de scan disponible");
-
-  const variance = (scanIndex % 4) * 19;
-  const price = Math.max(29, template.basePrice - variance);
-  const discountPercent = Math.round(((template.referencePrice - price) / template.referencePrice) * 100);
-  const status = scanIndex % 2 === 0 ? "verified" : "tracked";
-  const stock: DealSignal["stock"] = scanIndex % 3 === 0 ? "low" : scanIndex % 3 === 1 ? "medium" : "high";
-  const detectedAt = new Date().toISOString();
-
-  const draft = {
-    discountPercent,
-    stock,
-    verificationStatus: status as DealSignal["verificationStatus"],
-    priceHistory: [],
-  };
-
-  return {
-    id: `${template.sourceId}-${Date.now()}-${scanIndex}`,
-    title: template.title,
-    merchant: template.merchant,
-    category: template.category,
-    url: `https://example.com/free-scan/${template.sourceId}/${Date.now()}`,
-    image: template.image,
-    price,
-    referencePrice: template.referencePrice,
-    currency: "EUR",
-    discountPercent,
-    confidenceScore: calculateConfidence(draft),
-    detectedAt,
-    stock,
-    tags: ["auto-scan", ...template.tags],
-    sourceId: template.sourceId,
-    verificationStatus: status,
-    priceHistory: [
-      { date: "J-4", price: template.referencePrice },
-      { date: "J-3", price: Math.round(template.referencePrice * 0.93) },
-      { date: "J-2", price: Math.round(template.referencePrice * 0.82) },
-      { date: "Hier", price: Math.round(template.referencePrice * 0.7) },
-      { date: "Maintenant", price },
-    ],
   };
 }
 
@@ -210,14 +113,7 @@ export function useDealTracker() {
   const startFreeScan = () => {
     if (intervalRef.current) window.clearInterval(intervalRef.current);
 
-    const job: ScanJob = {
-      id: `scan-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      status: "running",
-      progress: 0,
-      scannedSources: 0,
-      detectedDeals: 0,
-    };
+    const job = createScanJob();
 
     setScanJob(job);
     pushEvent("Scan free-tier lancé : crawl simulé, scoring local, zéro clé API.", "info");
@@ -225,9 +121,7 @@ export function useDealTracker() {
     let tick = 0;
     intervalRef.current = window.setInterval(() => {
       tick += 1;
-      const progress = Math.min(100, tick * 16.7);
-      const scannedSources = Math.min(FREE_SOURCES.length, tick);
-      const shouldAddDeal = tick === 2 || tick === 4 || tick === 5 || tick === 6;
+      const { progress, scannedSources, shouldAddDeal } = getScanTickOutcome(tick, FREE_SOURCES.length);
 
       if (shouldAddDeal) {
         const detectedDeal = buildDetectedDeal(tick);
@@ -243,7 +137,7 @@ export function useDealTracker() {
         return {
           ...currentJob,
           status: progress >= 100 ? "completed" : "running",
-          progress: Math.round(progress),
+          progress,
           scannedSources,
           detectedDeals: currentJob.detectedDeals + (shouldAddDeal ? 1 : 0),
         };
