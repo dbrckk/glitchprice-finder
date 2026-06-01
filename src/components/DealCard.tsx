@@ -1,0 +1,163 @@
+import { memo, useCallback, useState } from "react";
+import { DealSignal } from "../types";
+import { CATEGORY_LABELS, formatCurrency, formatRelativeTime, getOpportunityScore, getSavings } from "../utils/dealScoring";
+import { getFreshnessLabel } from "../utils/dealFreshness";
+import { evaluateDealRisks } from "../utils/riskRules";
+
+interface DealCardProps {
+  deal: DealSignal;
+  isTracked: boolean;
+  onToggleWatchlist: (dealId: string) => void;
+  onVerify: (dealId: string) => void;
+}
+
+function StockLabel({ stock }: { stock: DealSignal["stock"] }) {
+  const label = stock === "low" ? "Stock bas" : stock === "medium" ? "Stock moyen" : "Stock OK";
+  return <span className={`stock-pill stock-pill--${stock}`}>{label}</span>;
+}
+
+function getVerificationSourceLabel(source: NonNullable<DealSignal["verificationEvidence"]>["source"]) {
+  return source === "api" ? "API" : "Pré-check local";
+}
+
+export const DealCard = memo(function DealCard({ deal, isTracked, onToggleWatchlist, onVerify }: DealCardProps) {
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
+  const maxPrice = Math.max(...deal.priceHistory.map((snapshot) => snapshot.price), deal.referencePrice);
+  const opportunityScore = getOpportunityScore(deal);
+  const risks = evaluateDealRisks(deal);
+  const freshnessLabel = getFreshnessLabel(deal);
+
+  const copyDealLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(deal.url);
+      setCopyState("copied");
+    } catch {
+      setCopyState("failed");
+    }
+
+    window.setTimeout(() => setCopyState("idle"), 1800);
+  }, [deal.url]);
+
+  return (
+    <article className={`deal-card ${isTracked ? "deal-card--tracked" : ""}`}>
+      <div className="deal-card__icon" aria-hidden="true">
+        {deal.image}
+      </div>
+
+      <div className="deal-card__content">
+        <div className="deal-card__header">
+          <div>
+            <p className="eyebrow">
+              {deal.merchant} - {CATEGORY_LABELS[deal.category]} - {formatRelativeTime(deal.detectedAt)}
+            </p>
+            <h3>{deal.title}</h3>
+          </div>
+          <div className="deal-badges">
+            <span className={`status status--${deal.verificationStatus}`}>
+              {deal.verificationStatus === "verified"
+                ? "Vérifié"
+                : deal.verificationStatus === "checking"
+                  ? "Check"
+                  : deal.verificationStatus === "expired"
+                    ? "Expiré"
+                    : "Suivi"}
+            </span>
+            <StockLabel stock={deal.stock} />
+            <span className="freshness-pill">{freshnessLabel}</span>
+          </div>
+        </div>
+
+        <div className="price-row">
+          <strong>{formatCurrency(deal.price, deal.currency)}</strong>
+          <span>{formatCurrency(deal.referencePrice, deal.currency)}</span>
+          <mark>-{deal.discountPercent}%</mark>
+        </div>
+
+        <div className="deal-score-grid" aria-label="Scores du deal">
+          <div>
+            <small>Confiance</small>
+            <strong>{deal.confidenceScore}%</strong>
+            <div className="confidence-meter" aria-hidden="true">
+              <span style={{ width: `${deal.confidenceScore}%` }} />
+            </div>
+          </div>
+          <div>
+            <small>Opportunité</small>
+            <strong>{opportunityScore}</strong>
+            <div className="confidence-meter confidence-meter--warm" aria-hidden="true">
+              <span style={{ width: `${Math.min(100, opportunityScore)}%` }} />
+            </div>
+          </div>
+          <div>
+            <small>Économie</small>
+            <strong>{formatCurrency(getSavings(deal), deal.currency)}</strong>
+          </div>
+        </div>
+
+        <div className="sparkline" aria-label="Historique du prix">
+          {deal.priceHistory.map((snapshot) => (
+            <span key={`${deal.id}-${snapshot.date}`} title={`${snapshot.date}: ${formatCurrency(snapshot.price, deal.currency)}`}>
+              <i style={{ height: `${Math.max(18, (snapshot.price / maxPrice) * 72)}px` }} />
+              <small>{snapshot.date}</small>
+            </span>
+          ))}
+        </div>
+
+        <div className="tag-row">
+          {deal.tags.map((tag) => (
+            <span key={tag}>#{tag}</span>
+          ))}
+        </div>
+
+        {risks.length > 0 && (
+          <div className="risk-row" aria-label="Signaux de risque">
+            {risks.map((risk) => (
+              <span key={risk.id} className={`risk-row__item risk-row__item--${risk.severity}`}>
+                {risk.label}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {deal.verificationEvidence && (
+          <div className={`verification-evidence verification-evidence--${deal.verificationEvidence.status}`}>
+            <div>
+              <strong>{getVerificationSourceLabel(deal.verificationEvidence.source)}</strong>
+              <span>{formatRelativeTime(deal.verificationEvidence.checkedAt)}</span>
+            </div>
+            <p>{deal.verificationEvidence.reason}</p>
+            <dl>
+              {deal.verificationEvidence.finalPrice !== undefined && (
+                <div>
+                  <dt>Prix relevé</dt>
+                  <dd>{formatCurrency(deal.verificationEvidence.finalPrice, deal.currency)}</dd>
+                </div>
+              )}
+              {deal.verificationEvidence.shippingFrance !== undefined && (
+                <div>
+                  <dt>Livraison France</dt>
+                  <dd>{deal.verificationEvidence.shippingFrance ? "Signal OK" : "Non prouvée"}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+        )}
+
+        <div className="deal-actions">
+          <a href={deal.url} target="_blank" rel="noreferrer">
+            Voir l'offre
+          </a>
+          <button type="button" onClick={() => onVerify(deal.id)} disabled={deal.verificationStatus === "checking"}>
+            {deal.verificationStatus === "checking" ? "Vérification..." : "Re-vérifier"}
+          </button>
+          <button type="button" className={`copy-link-button copy-link-button--${copyState}`} onClick={copyDealLink}>
+            {copyState === "copied" ? "Lien copié" : copyState === "failed" ? "Copie impossible" : "Copier lien"}
+          </button>
+          <button type="button" className={isTracked ? "is-active" : ""} onClick={() => onToggleWatchlist(deal.id)}>
+            {isTracked ? "Retirer du suivi" : "Suivre"}
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+});

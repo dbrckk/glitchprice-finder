@@ -3,19 +3,40 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/ensure-dependencies.mjs",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "pretypecheck": "node scripts/ensure-dependencies.mjs",
+    "typecheck": "tsc --noEmit",
+    "pretest": "node scripts/ensure-dependencies.mjs",
+    "test": "vitest run",
+    "preverify": "node scripts/sync-package-lock.mjs && node scripts/ensure-dependencies.mjs",
+    "verify": "npm run check:merge && npm run check:github-mergeable && npm run check:prod-files && npm run check:code-hygiene && npm run check:real-feed && npm run typecheck && npm run test && npm run build && npm audit",
+    "scan:live": "node scripts/scan-live-deals.mjs",
+    "check:conflicts": "npm run check:merge",
+    "scan:live:public": "node scripts/scan-live-deals.mjs --artifacts-dir=public",
+    "check:real-feed": "node scripts/check-real-feed.mjs",
+    "check:merge": "node scripts/check-conflicts.mjs",
+    "resolve:pr-conflicts": "node scripts/resolve-pr-conflicts.mjs",
+    "check:prod-files": "node scripts/check-prod-files.mjs",
+    "check:code-hygiene": "node scripts/check-code-hygiene.mjs",
+    "lock:sync": "node scripts/sync-package-lock.mjs",
+    "check:github-mergeable": "node scripts/check-github-mergeable.mjs"
   },
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.0.0",
-    "typescript": "^5.2.2",
-    "vite": "^5.4.21",
-    "tailwindcss": "^3.3.3",
+    "@types/node": "^25.9.1",
+    "@types/react": "^18.3.29",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.0.2",
+    "autoprefixer": "^10.4.14",
     "postcss": "^8.4.30",
-    "autoprefixer": "^10.4.14"
+    "tailwindcss": "^3.3.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.14",
+    "vitest": "^4.1.7"
   }
 }
