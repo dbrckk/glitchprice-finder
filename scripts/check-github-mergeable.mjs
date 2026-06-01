@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from "node:child_process";
 
-const DEFAULT_BASE_REF = "origin/main";
+const DEFAULT_BASE_REF = process.env.GITHUB_BASE_REF ? `origin/${process.env.GITHUB_BASE_REF}` : "origin/main";
 
 function parseArgs(argv) {
   const args = { base: DEFAULT_BASE_REF, fetch: true };
@@ -23,7 +23,7 @@ function parseArgs(argv) {
 }
 
 function printHelp() {
-  console.log("Usage: node scripts/check-github-mergeable.mjs [--base=origin/main] [--no-fetch]\n\nChecks that the current HEAD can merge with the GitHub target branch without file conflicts. If the base branch is already an ancestor of HEAD, the check passes immediately.");
+  console.log("Usage: node scripts/check-github-mergeable.mjs [--base=origin/main] [--no-fetch]\n\nFetches the GitHub target branch, then checks that current HEAD already contains it or can merge with it without file conflicts.");
 }
 
 function git(args, options = {}) {
@@ -53,7 +53,7 @@ function remoteExists(remote) {
 }
 
 function maybeFetchBase(baseRef, shouldFetch) {
-  if (!shouldFetch || refExists(baseRef)) {
+  if (!shouldFetch) {
     return;
   }
 
@@ -63,7 +63,8 @@ function maybeFetchBase(baseRef, shouldFetch) {
     return;
   }
 
-  const result = spawnSync("git", ["fetch", remote, branch], { stdio: "inherit" });
+  const remoteTrackingRef = `refs/remotes/${remote}/${branch}`;
+  const result = spawnSync("git", ["fetch", remote, `${branch}:${remoteTrackingRef}`], { stdio: "inherit" });
   if (result.status !== 0) {
     throw new Error(`Unable to fetch ${baseRef} before mergeability check.`);
   }
