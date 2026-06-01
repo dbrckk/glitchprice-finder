@@ -13,9 +13,14 @@ Plateforme React/Vite pour centraliser les grosses promotions et erreurs de prix
 
 ```bash
 npm install
+npm run verify
 npm run build
-npx tsc --noEmit
+npm run typecheck
 ```
+
+## Qualité et sécurité GitHub
+
+Le script `npm run verify` enchaine la vérification des marqueurs de conflit Git, des chemins incompatibles GitHub Actions/Windows, des caractères de contrôle interdits, du typage TypeScript, du build Vite et de `npm audit --audit-level=moderate`.
 
 ## Prochain branchement recommandé
 
