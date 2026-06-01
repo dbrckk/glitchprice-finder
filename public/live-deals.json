@@ -1,0 +1,288 @@
+{
+  "scannedAt": "2026-05-31T05:57:16.708Z",
+  "franceDeliveryRequired": true,
+  "minDiscountPercent": 35,
+  "maxResults": 20,
+  "summary": {
+    "totalResults": 12,
+    "criticalCount": 9,
+    "averageDiscount": 51,
+    "healthySources": 6,
+    "failedSources": 0
+  },
+  "results": [
+    {
+      "sourceId": "dealabs-price-error-fr",
+      "sourceName": "Dealabs erreurs de prix",
+      "title": "Erreur de prix - Lot de 12 gants de protection Reis Blutrix10 - bleus, taille 10",
+      "url": "https://www.dealabs.com/share-deal/3146566",
+      "price": 1.34,
+      "referencePrice": 16.47,
+      "discountPercent": 92,
+      "franceDelivery": true,
+      "qualityScore": 100,
+      "priority": "critical",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-price-error-fr",
+      "sourceName": "Dealabs erreurs de prix",
+      "title": "Selection de couches Pampers en erreur de prix - Ex : Taille 2, 100 couches à 4.57 € - Super U Tonnay-Charente (17), Saint-Python (59)",
+      "url": "https://www.dealabs.com/share-deal/3267229",
+      "price": 4.57,
+      "referencePrice": 15.32,
+      "discountPercent": 70,
+      "franceDelivery": true,
+      "qualityScore": 100,
+      "priority": "critical",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "[Clients EDF] Lave-linge séchant AI ecobubble 9+6 kg - WD90DG5B15BE",
+      "url": "https://www.dealabs.com/share-deal/3343321",
+      "price": 559.2,
+      "referencePrice": 999,
+      "discountPercent": 44,
+      "franceDelivery": true,
+      "qualityScore": 100,
+      "priority": "critical",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "Marsupilami : Le Secret du Sarcophage sur Nintendo Switch 1|2",
+      "url": "https://www.dealabs.com/share-deal/3343370",
+      "price": 13.47,
+      "referencePrice": 29.79,
+      "discountPercent": 55,
+      "franceDelivery": true,
+      "qualityScore": 97,
+      "priority": "critical",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "Ventilateur de plafond silencieux Wind Calm Natural Wood - 132cm, Wifi + Télécommande",
+      "url": "https://www.dealabs.com/share-deal/3342866",
+      "price": 123.16,
+      "referencePrice": 219.95,
+      "discountPercent": 44,
+      "franceDelivery": true,
+      "qualityScore": 97,
+      "priority": "critical",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "Remise sur une sélection d'articles Venum - Ex : Gants Contender 1.5 XT",
+      "url": "https://www.dealabs.com/share-deal/3343295",
+      "price": 22.5,
+      "referencePrice": 44.99,
+      "discountPercent": 50,
+      "franceDelivery": true,
+      "qualityScore": 93,
+      "priority": "critical",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "Scie trépan Bosch Expert (pour Bois résineux, Panneau aggloméré, Ø 159 mm, Professional Accessoire Perceuses)",
+      "url": "https://www.dealabs.com/share-deal/3342989",
+      "price": 40.97,
+      "referencePrice": 76.78,
+      "discountPercent": 47,
+      "franceDelivery": true,
+      "qualityScore": 93,
+      "priority": "critical",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "Imprimante tout-en-un HP Smart Tank 7005 couleur à réservoir d’encre (Via 80€ d'ODR - vendeur Darty)",
+      "url": "https://www.dealabs.com/share-deal/3343412",
+      "price": 119.99,
+      "referencePrice": 199.99,
+      "discountPercent": 40,
+      "franceDelivery": true,
+      "qualityScore": 92,
+      "priority": "critical",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "Claquettes homme Ellesse Avatar - Noir, taille de 40 à 45",
+      "url": "https://www.dealabs.com/share-deal/3342923",
+      "price": 12.99,
+      "referencePrice": 24.99,
+      "discountPercent": 48,
+      "franceDelivery": true,
+      "qualityScore": 91,
+      "priority": "critical",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "Fumoir Home&Garden XL 2L - 3 niveaux avec thermomètre + accessoires (Vendeur tiers)",
+      "url": "https://www.dealabs.com/share-deal/3343143",
+      "price": 59.95,
+      "referencePrice": 103.7,
+      "discountPercent": 42,
+      "franceDelivery": true,
+      "qualityScore": 89,
+      "priority": "high",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "Aspirateur sans sac Bosch BGS05A322",
+      "url": "https://www.dealabs.com/share-deal/3343226",
+      "price": 47.99,
+      "referencePrice": 79.99,
+      "discountPercent": 40,
+      "franceDelivery": true,
+      "qualityScore": 87,
+      "priority": "high",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    },
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "title": "Double vinyle Lenny Kravitz - Blue Electric Light",
+      "url": "https://www.dealabs.com/share-deal/3342885",
+      "price": 19.99,
+      "referencePrice": 33.99,
+      "discountPercent": 41,
+      "franceDelivery": true,
+      "qualityScore": 86,
+      "priority": "high",
+      "checkoutChecklist": [
+        "Ouvrir le marchand et vérifier le prix final TTC",
+        "Confirmer disponibilité et livraison en France",
+        "Comparer le prix de référence avant achat"
+      ],
+      "fetchFallback": true,
+      "fetchWarning": "fetch failed"
+    }
+  ],
+  "sourceReports": [
+    {
+      "sourceId": "dealabs-hot-fr",
+      "sourceName": "Dealabs Hot France",
+      "status": "ok",
+      "results": 10,
+      "durationMs": 1728
+    },
+    {
+      "sourceId": "dealabs-new-fr",
+      "sourceName": "Dealabs Nouveaux deals",
+      "status": "ok",
+      "results": 0,
+      "durationMs": 486
+    },
+    {
+      "sourceId": "dealabs-price-error-fr",
+      "sourceName": "Dealabs erreurs de prix",
+      "status": "ok",
+      "results": 2,
+      "durationMs": 668
+    },
+    {
+      "sourceId": "amazon-fr-deals",
+      "sourceName": "Amazon FR offres du jour",
+      "status": "ok",
+      "results": 0,
+      "durationMs": 1720
+    },
+    {
+      "sourceId": "fnac-flash-fr",
+      "sourceName": "Fnac ventes flash",
+      "status": "ok",
+      "results": 0,
+      "durationMs": 604
+    },
+    {
+      "sourceId": "cdiscount-bons-plans-fr",
+      "sourceName": "Cdiscount bons plans",
+      "status": "ok",
+      "results": 0,
+      "durationMs": 1023
+    }
+  ],
+  "errors": []
+}

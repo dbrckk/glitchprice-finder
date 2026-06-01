@@ -1,0 +1,8 @@
+# Keep generated/runtime artifacts visible as text in GitHub so they never appear as binary-only diffs.
+package-lock.json linguist-generated=true diff=json
+public/live-deals.json linguist-generated=true diff=json
+public/live-deals.csv linguist-generated=true diff=csv
+artifacts/** linguist-generated=true diff
+
+# Do not use automatic union merges for source or JSON files.
+# The PR conflict resolver and verify pipeline must produce syntactically valid files instead.

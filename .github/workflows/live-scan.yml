@@ -1,0 +1,38 @@
+name: Refresh Live Deals
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */2 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-live-deals:
+    name: Refresh public live deals
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate public live feed
+        run: npm run scan:live:public -- --max-results=30 --min-discount=35 --timeout-ms=12000
+
+      - name: Validate public live feed
+        run: npm run check:real-feed
+
+      - name: Commit refreshed feed
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Refresh public live deal feed"
+          file_pattern: public/live-deals.json public/live-deals.csv
