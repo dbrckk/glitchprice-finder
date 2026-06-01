@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { DealCard } from "./components/DealCard";
 import { InsightGrid } from "./components/InsightGrid";
 import { PriorityQueue } from "./components/PriorityQueue";
@@ -53,8 +53,21 @@ function App() {
     link.click();
     URL.revokeObjectURL(downloadUrl);
   }, [deals]);
+  const [isBatchVerifying, setIsBatchVerifying] = useState(false);
   const insights = useMemo(() => buildDealInsights(allDeals, watchlist), [allDeals, watchlist]);
   const priorityDeals = useMemo(() => sortDeals(allDeals, "opportunity").slice(0, 3), [allDeals]);
+  const verifyPriorityDeals = useCallback(async () => {
+    if (!priorityDeals.length || isBatchVerifying) return;
+
+    setIsBatchVerifying(true);
+    try {
+      for (const deal of priorityDeals) {
+        await verifyDeal(deal.id);
+      }
+    } finally {
+      setIsBatchVerifying(false);
+    }
+  }, [isBatchVerifying, priorityDeals, verifyDeal]);
   const feedFreshnessLabel = liveFeedStatus.scannedAt ? formatRelativeTime(liveFeedStatus.scannedAt) : "Non chargé";
   const refreshLabel = liveFeedStatus.lastRefreshAt ? formatRelativeTime(liveFeedStatus.lastRefreshAt) : "En attente";
   const feedErrorLabel = liveFeedStatus.errors.length ? `${liveFeedStatus.errors.length} alerte(s)` : "Aucune alerte";
@@ -181,7 +194,13 @@ function App() {
 
       <InsightGrid insights={insights} />
 
-      <PriorityQueue deals={priorityDeals} watchlist={watchlist} onToggleWatchlist={toggleWatchlist} />
+      <PriorityQueue
+        deals={priorityDeals}
+        watchlist={watchlist}
+        isBatchVerifying={isBatchVerifying}
+        onToggleWatchlist={toggleWatchlist}
+        onVerifyTopDeals={() => { void verifyPriorityDeals(); }}
+      />
 
       <SourceHealthPanel reports={liveFeedStatus.sourceDetails} />
 

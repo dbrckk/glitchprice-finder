@@ -231,6 +231,28 @@ button:disabled {
   font-weight: 900;
 }
 
+.priority-queue__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.priority-queue__toolbar button {
+  border: 0;
+  border-radius: 999px;
+  color: #07111f;
+  background: linear-gradient(135deg, var(--success), var(--accent-2));
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  font-weight: 1000;
+}
+
+.priority-queue__toolbar button:disabled {
+  color: var(--text-soft);
+  background: rgba(148, 163, 184, 0.16);
+}
+
 .priority-queue__list {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

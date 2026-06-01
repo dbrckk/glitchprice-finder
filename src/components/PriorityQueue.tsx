@@ -4,10 +4,12 @@ import { formatCurrency, getOpportunityScore, getSavings } from "../utils/dealSc
 interface PriorityQueueProps {
   deals: DealSignal[];
   watchlist: string[];
+  isBatchVerifying: boolean;
   onToggleWatchlist: (dealId: string) => void;
+  onVerifyTopDeals: () => void;
 }
 
-export function PriorityQueue({ deals, watchlist, onToggleWatchlist }: PriorityQueueProps) {
+export function PriorityQueue({ deals, watchlist, isBatchVerifying, onToggleWatchlist, onVerifyTopDeals }: PriorityQueueProps) {
   if (!deals.length) {
     return null;
   }
@@ -19,7 +21,12 @@ export function PriorityQueue({ deals, watchlist, onToggleWatchlist }: PriorityQ
           <p className="eyebrow">Priorité opérationnelle</p>
           <h2>Top deals à traiter maintenant</h2>
         </div>
-        <span>{deals.length} signaux classés</span>
+        <div className="priority-queue__toolbar">
+          <span>{deals.length} signaux classés</span>
+          <button type="button" onClick={onVerifyTopDeals} disabled={isBatchVerifying}>
+            {isBatchVerifying ? "Vérification..." : "Pré-vérifier top 3"}
+          </button>
+        </div>
       </div>
 
       <div className="priority-queue__list">
