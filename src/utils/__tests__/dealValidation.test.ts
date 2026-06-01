@@ -19,6 +19,14 @@ const validDeal: DealSignal = {
   tags: ["price-error"],
   sourceId: "amazon-fr-promos",
   verificationStatus: "verified",
+  verificationEvidence: {
+    status: "needs_api",
+    reason: "Pré-vérification locale en attente API.",
+    checkedAt: "2026-05-30T10:05:00.000Z",
+    finalPrice: 799,
+    shippingFrance: true,
+    source: "local-preflight",
+  },
   priceHistory: [
     { date: "Hier", price: 999 },
     { date: "Maintenant", price: 799 },
@@ -31,6 +39,7 @@ describe("dealValidation", () => {
     expect(isDealSignal({ ...validDeal, category: "invalid" })).toBe(false);
     expect(isDealSignal({ ...validDeal, detectedAt: "not-a-date" })).toBe(false);
     expect(isDealSignal({ ...validDeal, priceHistory: [] })).toBe(false);
+    expect(isDealSignal({ ...validDeal, verificationEvidence: { status: "needs_api", checkedAt: "bad-date" } })).toBe(false);
   });
 
   it("sanitizes persisted deals and recalculates derived fields", () => {
@@ -39,6 +48,7 @@ describe("dealValidation", () => {
     expect(sanitizedDeals).toHaveLength(1);
     expect(sanitizedDeals[0]?.discountPercent).toBe(38);
     expect(sanitizedDeals[0]?.confidenceScore).toBeGreaterThan(validDeal.confidenceScore);
+    expect(sanitizedDeals[0]?.verificationEvidence?.source).toBe("local-preflight");
   });
 
   it("deduplicates watchlist values and keeps only strings", () => {

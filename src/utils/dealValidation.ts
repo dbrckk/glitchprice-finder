@@ -5,6 +5,8 @@ const DEAL_CATEGORIES = ["tech", "home", "travel", "fashion", "gaming"] as const
 const VERIFICATION_STATUSES = ["tracked", "checking", "verified", "expired"] as const satisfies ReadonlyArray<VerificationStatus>;
 const STOCK_LEVELS = ["high", "medium", "low"] as const satisfies ReadonlyArray<DealSignal["stock"]>;
 const CURRENCIES = ["EUR", "USD"] as const satisfies ReadonlyArray<DealSignal["currency"]>;
+const VERIFICATION_EVIDENCE_STATUSES = ["verified", "unavailable", "needs_api"] as const;
+const VERIFICATION_EVIDENCE_SOURCES = ["api", "local-preflight"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -31,6 +33,29 @@ function isPriceHistory(value: unknown): value is DealSignal["priceHistory"] {
 
 function isOneOf<const T extends readonly string[]>(value: unknown, allowedValues: T): value is T[number] {
   return typeof value === "string" && allowedValues.includes(value);
+}
+
+function isOptionalFiniteNumber(value: unknown) {
+  return value === undefined || (typeof value === "number" && Number.isFinite(value));
+}
+
+function isOptionalBoolean(value: unknown) {
+  return value === undefined || typeof value === "boolean";
+}
+
+function isVerificationEvidence(value: unknown): value is NonNullable<DealSignal["verificationEvidence"]> {
+  if (value === undefined) return true;
+  if (!isRecord(value)) return false;
+
+  return (
+    isOneOf(value.status, VERIFICATION_EVIDENCE_STATUSES) &&
+    typeof value.reason === "string" &&
+    typeof value.checkedAt === "string" &&
+    !Number.isNaN(Date.parse(value.checkedAt)) &&
+    isOptionalFiniteNumber(value.finalPrice) &&
+    isOptionalBoolean(value.shippingFrance) &&
+    (value.source === undefined || isOneOf(value.source, VERIFICATION_EVIDENCE_SOURCES))
+  );
 }
 
 export function calculateDiscountPercent(price: number, referencePrice: number) {
@@ -63,6 +88,7 @@ export function isDealSignal(value: unknown): value is DealSignal {
     isStringArray(value.tags) &&
     typeof value.sourceId === "string" &&
     isOneOf(value.verificationStatus, VERIFICATION_STATUSES) &&
+    isVerificationEvidence(value.verificationEvidence) &&
     isPriceHistory(value.priceHistory)
   );
 }

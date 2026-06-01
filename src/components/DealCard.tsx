@@ -16,6 +16,10 @@ function StockLabel({ stock }: { stock: DealSignal["stock"] }) {
   return <span className={`stock-pill stock-pill--${stock}`}>{label}</span>;
 }
 
+function getVerificationSourceLabel(source: NonNullable<DealSignal["verificationEvidence"]>["source"]) {
+  return source === "api" ? "API" : "Pré-check local";
+}
+
 export const DealCard = memo(function DealCard({ deal, isTracked, onToggleWatchlist, onVerify }: DealCardProps) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const maxPrice = Math.max(...deal.priceHistory.map((snapshot) => snapshot.price), deal.referencePrice);
@@ -112,6 +116,30 @@ export const DealCard = memo(function DealCard({ deal, isTracked, onToggleWatchl
                 {risk.label}
               </span>
             ))}
+          </div>
+        )}
+
+        {deal.verificationEvidence && (
+          <div className={`verification-evidence verification-evidence--${deal.verificationEvidence.status}`}>
+            <div>
+              <strong>{getVerificationSourceLabel(deal.verificationEvidence.source)}</strong>
+              <span>{formatRelativeTime(deal.verificationEvidence.checkedAt)}</span>
+            </div>
+            <p>{deal.verificationEvidence.reason}</p>
+            <dl>
+              {deal.verificationEvidence.finalPrice !== undefined && (
+                <div>
+                  <dt>Prix relevé</dt>
+                  <dd>{formatCurrency(deal.verificationEvidence.finalPrice, deal.currency)}</dd>
+                </div>
+              )}
+              {deal.verificationEvidence.shippingFrance !== undefined && (
+                <div>
+                  <dt>Livraison France</dt>
+                  <dd>{deal.verificationEvidence.shippingFrance ? "Signal OK" : "Non prouvée"}</dd>
+                </div>
+              )}
+            </dl>
           </div>
         )}
 

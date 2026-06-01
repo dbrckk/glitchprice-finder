@@ -26,6 +26,15 @@ export interface PriceSnapshot {
   price: number;
 }
 
+export interface VerificationEvidence {
+  status: "verified" | "unavailable" | "needs_api";
+  reason: string;
+  checkedAt: string;
+  finalPrice?: number;
+  shippingFrance?: boolean;
+  source?: "api" | "local-preflight";
+}
+
 export interface DealSignal {
   id: string;
   title: string;
@@ -43,6 +52,7 @@ export interface DealSignal {
   tags: string[];
   sourceId: string;
   verificationStatus: VerificationStatus;
+  verificationEvidence?: VerificationEvidence;
   priceHistory: PriceSnapshot[];
 }
 

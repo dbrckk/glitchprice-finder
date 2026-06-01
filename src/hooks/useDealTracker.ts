@@ -209,12 +209,21 @@ export function useDealTracker() {
 
     try {
       const result = await verifyDealSignal(dealToVerify);
+      const verificationEvidence = {
+        status: result.status,
+        reason: result.reason,
+        checkedAt: result.checkedAt ?? new Date().toISOString(),
+        ...(result.finalPrice !== undefined ? { finalPrice: result.finalPrice } : {}),
+        ...(result.shippingFrance !== undefined ? { shippingFrance: result.shippingFrance } : {}),
+        ...(result.source ? { source: result.source } : {}),
+      };
       setDeals((currentDeals) =>
         currentDeals.map((deal) =>
           deal.id === dealId
             ? {
                 ...deal,
                 verificationStatus: result.status === "verified" ? "verified" : result.status === "needs_api" ? "tracked" : "expired",
+                verificationEvidence,
                 confidenceScore:
                   result.status === "verified"
                     ? calculateConfidence({ ...deal, verificationStatus: "verified" })
