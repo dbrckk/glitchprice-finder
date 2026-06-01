@@ -443,3 +443,36 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.deal-card__icon img {
+  width: 100%;
+  max-width: 82px;
+  aspect-ratio: 1;
+  border-radius: 18px;
+  object-fit: cover;
+}
+
+.status--expired {
+  color: white;
+  background: var(--danger);
+}
+
+.panel-warning,
+.empty-state span {
+  color: var(--text-soft);
+}
+
+.panel-warning {
+  max-width: 760px;
+  margin: 10px 0 0;
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  display: grid;
+  gap: 8px;
+  padding: 22px;
+  border: 1px dashed rgba(34, 211, 238, 0.35);
+  border-radius: 20px;
+  background: rgba(15, 23, 42, 0.58);
+}
