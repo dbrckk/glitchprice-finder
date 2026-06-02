@@ -3,9 +3,18 @@ import { calculateConfidence } from "../utils/dealScoring";
 
 const FETCH_TIMEOUT_MS = 9000;
 const MAX_ITEMS_PER_SOURCE = 18;
+const MAX_CONCURRENT_SOURCE_FETCHES = 3;
 const MIN_DEEP_DISCOUNT_PERCENT = 70;
-const PROXY_URL = "https://api.codetabs.com/v1/proxy/";
+const MIN_PAYLOAD_CHARS = 120;
+const CORS_PROXY_BUILDERS = [
+  (url: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+];
 const PRICE_ERROR_PATTERNS = [/erreur\s+de\s+prix/i, /erreur\s+prix/i, /price\s*error/i, /glitch/i, /bug\s+prix/i];
+const DISCOUNT_PERCENT_PATTERNS = [
+  /[-−]\s*(\d{1,2})\s*%/i,
+  /(\d{1,2})\s*%\s*(?:off|de\s+remise|de\s+r[ée]duction|reduction|discount)/i,
+];
 
 type LiveSourceMode = "rss" | "html" | "markdown";
 
@@ -88,7 +97,7 @@ export const LIVE_FEEDS: LiveFeedSource[] = [
     id: "amazon-direct-markdown",
     name: "Amazon FR direct goldbox",
     url: "https://www.amazon.fr/gp/goldbox",
-    scrapeUrl: "https://r.jina.ai/http://r.jina.ai/http://https://www.amazon.fr/gp/goldbox",
+    scrapeUrl: "https://r.jina.ai/http://https://www.amazon.fr/gp/goldbox",
     mode: "markdown",
     category: "tech",
     fallbackCategory: "tech",
@@ -133,6 +142,30 @@ export const LIVE_FEEDS: LiveFeedSource[] = [
     minDiscountPercent: MIN_DEEP_DISCOUNT_PERCENT,
   },
   {
+    id: "boulanger-deep-rss",
+    name: "Boulanger 70%+ & erreurs",
+    url: "https://www.boulanger.com/evenement/operation",
+    feedUrl: "https://www.dealabs.com/rss?q=boulanger",
+    mode: "rss",
+    category: "tech",
+    fallbackCategory: "tech",
+    cadenceMinutes: 7,
+    reliability: 82,
+    minDiscountPercent: MIN_DEEP_DISCOUNT_PERCENT,
+  },
+  {
+    id: "rakuten-deep-rss",
+    name: "Rakuten 70%+ & erreurs",
+    url: "https://fr.shopping.rakuten.com/",
+    feedUrl: "https://www.dealabs.com/rss?q=rakuten",
+    mode: "rss",
+    category: "tech",
+    fallbackCategory: "tech",
+    cadenceMinutes: 7,
+    reliability: 80,
+    minDiscountPercent: MIN_DEEP_DISCOUNT_PERCENT,
+  },
+  {
     id: "price-error-rss",
     name: "Erreurs de prix multi-marchands",
     url: "https://www.dealabs.com/search?q=erreur%20prix",
@@ -166,10 +199,6 @@ const CATEGORY_RULES: Array<{ category: Exclude<DealCategory, "all">; patterns: 
   { category: "home", patterns: [/maison/i, /jardin/i, /bricolage/i, /cuisine/i, /meuble/i, /famille/i, /enfants/i] },
 ];
 
-function proxiedUrl(url: string) {
-  return `${PROXY_URL}?quest=${encodeURIComponent(url)}`;
-}
-
 async function fetchWithTimeout(url: string) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -177,36 +206,67 @@ async function fetchWithTimeout(url: string) {
   try {
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.text();
+    const payload = await response.text();
+    if (payload.trim().length < MIN_PAYLOAD_CHARS) throw new Error("Réponse trop courte");
+    return payload;
   } finally {
     window.clearTimeout(timeout);
   }
 }
 
 async function fetchText(url: string): Promise<string> {
-  try {
-    return await fetchWithTimeout(proxiedUrl(url));
-  } catch {
-    // Proxy first avoids browser CORS noise. Direct fetch remains as a fallback for environments that allow it.
-    return fetchWithTimeout(url);
+  const candidates = [...CORS_PROXY_BUILDERS.map((buildProxyUrl) => buildProxyUrl(url)), url];
+  const errors: string[] = [];
+
+  for (const candidate of candidates) {
+    try {
+      return await fetchWithTimeout(candidate);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "Erreur inconnue");
+    }
   }
+
+  throw new Error(`Source inaccessible (${errors.join(" / ")})`);
 }
 
 function textFrom(item: Element, selector: string) {
   return item.querySelector(selector)?.textContent?.trim() ?? "";
 }
 
+function stripHtml(value: string) {
+  return value.replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+}
+
+function parsePrices(...values: string[]) {
+  return values.flatMap((value) =>
+    Array.from(stripHtml(value).matchAll(/(\d{1,5}(?:[\s.,]\d{2})?)\s*(?:€|eur|euro|\$)/gi))
+      .map((match) => Number(match[1].replace(/\s/g, "").replace(",", ".")))
+      .filter((price) => Number.isFinite(price) && price >= 0),
+  );
+}
+
 function parsePrice(rawPrice: string, title: string, description: string) {
-  const candidates = [rawPrice, title, description];
-  for (const candidate of candidates) {
-    const match = candidate.match(/(\d{1,5}(?:[\s.,]\d{2})?)\s*(?:€|eur|euro|\$)/i);
+  return parsePrices(rawPrice, title, description)[0] ?? 0;
+}
+
+function parseExplicitDiscountPercent(...values: string[]) {
+  const context = values.map(stripHtml).join(" ");
+  for (const pattern of DISCOUNT_PERCENT_PATTERNS) {
+    const match = context.match(pattern);
     if (!match) continue;
 
-    const value = Number(match[1].replace(/\s/g, "").replace(",", "."));
-    if (Number.isFinite(value) && value >= 0) return value;
+    const percent = Number(match[1]);
+    if (Number.isFinite(percent) && percent > 0) return Math.min(99, Math.round(percent));
   }
 
   return 0;
+}
+
+function bestReferencePrice(price: number, ...values: string[]) {
+  return Math.max(
+    0,
+    ...parsePrices(...values).filter((candidate) => candidate > price && Math.abs(candidate - price) > 0.01),
+  );
 }
 
 function parseTemperature(title: string) {
@@ -223,7 +283,9 @@ function hasPriceErrorSignal(title: string) {
   return PRICE_ERROR_PATTERNS.some((pattern) => pattern.test(title));
 }
 
-function detectDiscount(title: string, price: number, nextBestPrice: number, explicitPercentage = 0): DiscountEvidence {
+function detectDiscount(title: string, price: number, nextBestPrice: number, explicitPercentage = 0, description = ""): DiscountEvidence {
+  const context = `${title} ${stripHtml(description)}`;
+
   if (nextBestPrice > price && nextBestPrice > 0) {
     return {
       kind: "price-comparison",
@@ -235,12 +297,12 @@ function detectDiscount(title: string, price: number, nextBestPrice: number, exp
     return { kind: "explicit-percent", percent: Math.min(99, Math.round(explicitPercentage)) };
   }
 
-  const discountMatch = title.match(/[-−]\s*(\d{1,2})\s*%/);
-  if (discountMatch) {
-    return { kind: "explicit-percent", percent: Math.min(99, Math.max(1, Number(discountMatch[1]))) };
+  const parsedPercentage = parseExplicitDiscountPercent(context);
+  if (parsedPercentage > 0) {
+    return { kind: "explicit-percent", percent: parsedPercentage };
   }
 
-  if (/gratuit|free/i.test(title) && price === 0) {
+  if (/gratuit|free/i.test(context) && price === 0) {
     return { kind: "free", percent: 100 };
   }
 
@@ -337,9 +399,11 @@ function parseFeed(xml: string, source: LiveFeedSource): DealSignal[] {
       const temperature = parseTemperature(rawTitle);
       const title = normalizeTitle(rawTitle) || rawTitle;
       const price = parsePrice(rawPrice, rawTitle, description);
-      const discountEvidence = detectDiscount(rawTitle, price, 0);
+      const nextBestPrice = bestReferencePrice(price, description, rawTitle);
+      const explicitPercentage = parseExplicitDiscountPercent(rawTitle, description);
+      const discountEvidence = detectDiscount(rawTitle, price, nextBestPrice, explicitPercentage, description);
       const discountPercent = discountEvidence.percent;
-      const referencePrice = referencePriceFromEvidence(price, discountEvidence);
+      const referencePrice = referencePriceFromEvidence(price, discountEvidence, nextBestPrice);
       const isPriceError = discountEvidence.kind === "price-error" || hasPriceErrorSignal(rawTitle);
       const stock = stockFromTemperature(temperature, isPriceError);
       const category = categoryFrom(categoryLabel, rawTitle, source.fallbackCategory);
@@ -540,11 +604,28 @@ export async function fetchLiveFeed(source: LiveFeedSource): Promise<LiveScanRes
   }
 }
 
+async function mapWithConcurrency<T, R>(items: T[], limit: number, mapper: (item: T) => Promise<R>) {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+        results[currentIndex] = await mapper(items[currentIndex]);
+      }
+    }),
+  );
+
+  return results;
+}
+
 export async function fetchLiveDeals(sources: LiveFeedSource[] = LIVE_FEEDS): Promise<LiveScanResult[]> {
-  return Promise.all(sources.map((source) => fetchLiveFeed(source)));
+  return mapWithConcurrency(sources, MAX_CONCURRENT_SOURCE_FETCHES, fetchLiveFeed);
 }
 
 export async function verifyDealAvailability(url: string): Promise<boolean> {
   const html = await fetchText(url);
-  return html.length > 250 && !/not found|introuvable|expired|expire|indisponible/i.test(html.slice(0, 5000));
+  return html.length > 250 && !/not found|introuvable|expired|expire|indisponible|out\s*of\s*stock|unavailable/i.test(html.slice(0, 5000));
 }

@@ -117,7 +117,7 @@ function App() {
           <h1>Scraper réel, sans remise inventée.</h1>
           <p>
             Ne conserve que les remises explicitement présentes dans les pages ou flux, les comparaisons de prix réelles, les gratuits et les signaux
-            textuels d’erreur de prix. Dealabs, Amazon Goldbox, Amazon, Cdiscount et Fnac sont scannés sans données simulées.
+            textuels d’erreur de prix. Dealabs, Amazon Goldbox, Amazon, Cdiscount, Fnac, Boulanger et Rakuten sont scannés sans données simulées.
           </p>
           <div className="hero-actions">
             <button type="button" onClick={startLiveScan} disabled={scanJob?.status === "running"}>

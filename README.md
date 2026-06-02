@@ -5,7 +5,7 @@ Plateforme React/Vite pour centraliser les grosses promotions et erreurs de prix
 ## Module actuel
 
 - Dashboard de tracking avec scoring d'opportunité, métriques globales et filtres par catégorie.
-- Scraping réel Dealabs + Amazon Goldbox direct + flux marchands Amazon, Cdiscount, Fnac avec filtre 70%+ basé uniquement sur remises explicites, comparaisons de prix réelles, gratuits ou signaux textuels d’erreur de prix.
+- Scraping réel Dealabs + Amazon Goldbox direct + flux marchands Amazon, Cdiscount, Fnac, Boulanger et Rakuten avec filtre 70%+ basé uniquement sur remises explicites, comparaisons de prix réelles, gratuits ou signaux textuels d’erreur de prix.
 - Watchlist persistante via `localStorage` en attendant le branchement d'une base free-tier.
 - Vérification à la demande des liens détectés, cache navigateur des derniers deals scrapés et fallback RSS si une page HTML est temporairement indisponible.
 
