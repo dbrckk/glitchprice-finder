@@ -4,7 +4,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "verify:repo": "node scripts/verify-repository.cjs",
+    "security:audit": "npm audit --audit-level=moderate",
+    "verify": "npm run verify:repo && npm run typecheck && npm run build && npm run security:audit"
   },
   "dependencies": {
     "react": "^18.2.0",
@@ -13,11 +17,12 @@
   "devDependencies": {
     "@types/react": "^18.3.29",
     "@types/react-dom": "^18.3.7",
-    "@vitejs/plugin-react": "^4.0.0",
+    "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.14",
     "postcss": "^8.4.30",
     "tailwindcss": "^3.3.3",
-    "typescript": "^5.2.2",
-    "vite": "^5.4.21"
-  }
+    "typescript": "^6.0.3",
+    "vite": "^8.0.16"
+  },
+  "type": "module"
 }
