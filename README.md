@@ -5,9 +5,9 @@ Plateforme React/Vite pour centraliser les grosses promotions et erreurs de prix
 ## Module actuel
 
 - Dashboard de tracking avec scoring d'opportunité, métriques globales et filtres par catégorie.
-- Simulation de scan multi-sources gratuite pour développer sans bloquer sur des APIs externes.
+- Scraping réel Dealabs + Amazon Goldbox direct + flux marchands Amazon, Cdiscount, Fnac avec filtre 70%+, détection d’erreurs de prix et proxy CORS de secours pour fonctionner en hébergement statique.
 - Watchlist persistante via `localStorage` en attendant le branchement d'une base free-tier.
-- Sources publiques modélisées pour préparer une future couche de scraping open-source.
+- Vérification à la demande des liens détectés, cache navigateur des derniers deals scrapés et fallback RSS si une page HTML est temporairement indisponible.
 
 ## Commandes
 
@@ -24,4 +24,4 @@ Le script `npm run verify` enchaine la vérification des marqueurs de conflit Gi
 
 ## Prochain branchement recommandé
 
-Ajouter un backend serverless gratuit (Supabase Edge Functions, Firebase Functions free-tier ou Render free-tier si disponible) avec Playwright/Cheerio et stockage Supabase free-tier. Les données mockées du frontend peuvent être remplacées progressivement par une API sans changer le modèle métier principal.
+Ajouter un backend serverless gratuit (Supabase Edge Functions, Firebase Functions free-tier ou Render free-tier si disponible) avec Playwright/Cheerio et stockage Supabase free-tier. La couche de scraping frontend peut être complétée par un backend serverless avec Playwright/Cheerio pour enrichir les prix de référence et multiplier les marchands sans changer le modèle métier principal.
