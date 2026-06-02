@@ -1,6 +1,3 @@
-import { fetchLiveDeals, verifyDealAvailability } from "./liveDeals";
-import { DealCategory, DealSignal } from "../types";
-
 export interface GlitchItem {
   name: string;
   description: string;
@@ -13,55 +10,22 @@ export interface GlitchItem {
   verificationReason?: string;
 }
 
-export interface VerifyItemResponse {
-  status: "verified" | "unavailable";
-  reason: string;
+const API_URL = "https://deal-finder-backend-y9wb.onrender.com";
+
+export async function searchGlitchItems(category: string, keyword: string, website: string): Promise<GlitchItem[]> {
+  // Returns items from one website for one keyword
+  const res = await fetch(`${API_URL}/search?category=${category}&keyword=${keyword}&website=${website}`);
+  if (!res.ok) throw new Error("Erreur backend");
+  const data = await res.json();
+  return data.items;
 }
 
-const CATEGORY_VALUES = new Set<DealCategory>(["all", "tech", "home", "travel", "fashion", "gaming"]);
-
-function normalizeCategory(category: string): DealCategory {
-  return CATEGORY_VALUES.has(category as DealCategory) ? (category as DealCategory) : "all";
-}
-
-function matchesText(deal: DealSignal, keyword: string, website: string) {
-  const normalizedKeyword = keyword.trim().toLowerCase();
-  const normalizedWebsite = website.trim().toLowerCase();
-  const haystack = [deal.title, deal.merchant, deal.url, deal.tags.join(" ")].join(" ").toLowerCase();
-
-  return (!normalizedKeyword || haystack.includes(normalizedKeyword)) && (!normalizedWebsite || haystack.includes(normalizedWebsite));
-}
-
-function toGlitchItem(deal: DealSignal): GlitchItem {
-  return {
-    name: deal.title,
-    description: `${deal.merchant} • ${deal.tags.join(" • ")}`,
-    savingsPercentage: deal.discountPercent,
-    discountedPrice: deal.price,
-    nextBestPrice: { price: deal.referencePrice, store: "Prix de référence détecté" },
-    url: deal.url,
-    category: deal.category,
-    verificationStatus: deal.verificationStatus === "expired" ? "unavailable" : "verified",
-    verificationReason: `${deal.confidenceScore}% de confiance via scraping live`,
-  };
-}
-
-export async function searchGlitchItems(category: string, keyword = "", website = ""): Promise<GlitchItem[]> {
-  const normalizedCategory = normalizeCategory(category);
-  const scanResults = await fetchLiveDeals();
-
-  return scanResults
-    .flatMap((result) => result.deals)
-    .filter((deal) => normalizedCategory === "all" || deal.category === normalizedCategory)
-    .filter((deal) => matchesText(deal, keyword, website))
-    .map(toGlitchItem);
-}
-
-export async function verifyItem(url: string): Promise<VerifyItemResponse> {
-  const isAvailable = await verifyDealAvailability(url);
-
-  return {
-    status: isAvailable ? "verified" : "unavailable",
-    reason: isAvailable ? "Lien accessible au moment de la vérification." : "Lien inaccessible, expiré ou indisponible.",
-  };
+export async function verifyItem(url: string) {
+  const res = await fetch(`${API_URL}/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  if (!res.ok) throw new Error("Erreur vérification");
+  return await res.json(); // { status: "verified" | "unavailable", reason: string }
 }
