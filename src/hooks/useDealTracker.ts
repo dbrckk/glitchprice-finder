@@ -1,10 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { LIVE_FEEDS, fetchLiveDeals, verifyDealAvailability } from "../api/liveDeals";
+import { LIVE_FEEDS, LiveScanResult, fetchLiveDeals, verifyDealAvailability } from "../api/liveDeals";
 import { calculateConfidence, calculateMetrics, sortDealsByOpportunity } from "../utils/dealScoring";
 import { DealCategory, DealSignal, ScanJob } from "../types";
 
 const STORAGE_KEY = "glitchprice.liveDeals.v2";
 const WATCHLIST_KEY = "glitchprice.watchlist.v2";
+
+export interface SourceReport {
+  sourceId: string;
+  sourceName: string;
+  status: "idle" | "ok" | "empty" | "error";
+  detectedDeals: number;
+  durationMs: number;
+  fetchedAt: string | null;
+  error?: string;
+}
 
 function safeRead<T>(key: string, fallback: T): T {
   try {
@@ -13,6 +23,37 @@ function safeRead<T>(key: string, fallback: T): T {
   } catch {
     return fallback;
   }
+}
+
+function buildInitialReports(): SourceReport[] {
+  return LIVE_FEEDS.map((source) => ({
+    sourceId: source.id,
+    sourceName: source.name,
+    status: "idle",
+    detectedDeals: 0,
+    durationMs: 0,
+    fetchedAt: null,
+  }));
+}
+
+function buildReports(results: LiveScanResult[]): SourceReport[] {
+  const reports = new Map(
+    buildInitialReports().map((report) => [report.sourceId, report]),
+  );
+
+  for (const result of results) {
+    reports.set(result.sourceId, {
+      sourceId: result.sourceId,
+      sourceName: result.sourceName,
+      status: result.error ? "error" : result.deals.length > 0 ? "ok" : "empty",
+      detectedDeals: result.deals.length,
+      durationMs: result.durationMs,
+      fetchedAt: result.fetchedAt,
+      error: result.error,
+    });
+  }
+
+  return Array.from(reports.values());
 }
 
 function mergeDeals(currentDeals: DealSignal[], incomingDeals: DealSignal[]) {
@@ -33,7 +74,9 @@ export function useDealTracker() {
   const [scanJob, setScanJob] = useState<ScanJob | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string | null>(null);
   const [scanError, setScanError] = useState<string>("");
+  const [sourceReports, setSourceReports] = useState<SourceReport[]>(() => buildInitialReports());
   const firstLoadRef = useRef(false);
+  const scanRunRef = useRef(0);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(deals));
@@ -49,8 +92,18 @@ export function useDealTracker() {
   }, [activeCategory, deals]);
 
   const metrics = useMemo(() => calculateMetrics(filteredDeals), [filteredDeals]);
+  const sourceHealth = useMemo(() => {
+    const okSources = sourceReports.filter((report) => report.status === "ok").length;
+    const failedSources = sourceReports.filter((report) => report.status === "error").length;
+    const emptySources = sourceReports.filter((report) => report.status === "empty").length;
+
+    return { okSources, failedSources, emptySources };
+  }, [sourceReports]);
 
   const startLiveScan = useCallback(async () => {
+    const scanRunId = scanRunRef.current + 1;
+    scanRunRef.current = scanRunId;
+
     const job: ScanJob = {
       id: `scan-${Date.now()}`,
       createdAt: new Date().toISOString(),
@@ -62,11 +115,15 @@ export function useDealTracker() {
 
     setScanJob(job);
     setScanError("");
+    setSourceReports(buildInitialReports());
 
     const results = await fetchLiveDeals(LIVE_FEEDS);
+    if (scanRunRef.current !== scanRunId) return;
+
     const liveDeals = results.flatMap((result) => result.deals);
     const failedSources = results.filter((result) => result.error);
 
+    setSourceReports(buildReports(results));
     setDeals((currentDeals) => mergeDeals(currentDeals, liveDeals));
     setLastUpdated(new Date().toISOString());
     setScanJob((currentJob) => ({
@@ -151,6 +208,8 @@ export function useDealTracker() {
     scanError,
     lastUpdated,
     watchlist,
+    sourceReports,
+    sourceHealth,
     setActiveCategory,
     startLiveScan,
     toggleWatchlist,

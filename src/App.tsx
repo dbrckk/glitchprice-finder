@@ -99,6 +99,8 @@ function App() {
     activeCategory,
     scanJob,
     watchlist,
+    sourceReports,
+    sourceHealth,
     setActiveCategory,
     scanError,
     lastUpdated,
@@ -111,18 +113,19 @@ function App() {
     <main className="app-shell">
       <section className="hero-panel">
         <div className="hero-panel__copy">
-          <p className="eyebrow">GlitchPrice Finder • vrai scrap 70%+</p>
-          <h1>Scraper réel de grosses promos 70%+ et erreurs de prix.</h1>
+          <p className="eyebrow">GlitchPrice Finder • scraping réel vérifié</p>
+          <h1>Scraper réel, sans remise inventée.</h1>
           <p>
-            Scrape Dealabs, Amazon Goldbox en direct et des flux marchands Amazon, Cdiscount, Fnac, filtre les remises profondes à 70% ou plus,
-            normalise les prix et vérifie les liens sans données simulées.
+            Ne conserve que les remises explicitement présentes dans les pages ou flux, les comparaisons de prix réelles, les gratuits et les signaux
+            textuels d’erreur de prix. Dealabs, Amazon Goldbox, Amazon, Cdiscount, Fnac, Boulanger et Rakuten sont scannés sans données simulées.
           </p>
           <div className="hero-actions">
             <button type="button" onClick={startLiveScan} disabled={scanJob?.status === "running"}>
               {scanJob?.status === "running" ? "Scan live en cours..." : "Scraper les grosses promos"}
             </button>
             <span>
-              {sources.length} scrapers publics actifs
+              {sourceHealth.okSources}/{sources.length} sources OK
+              {sourceHealth.failedSources ? ` • ${sourceHealth.failedSources} en erreur` : ""}
               {lastUpdated ? ` • dernière sync ${formatRelativeTime(lastUpdated)}` : ""}
             </span>
           </div>
@@ -144,6 +147,14 @@ function App() {
             <div>
               <dt>Deals détectés</dt>
               <dd>{scanJob?.detectedDeals ?? 0}</dd>
+            </div>
+            <div>
+              <dt>Sources OK</dt>
+              <dd>{sourceHealth.okSources}</dd>
+            </div>
+            <div>
+              <dt>Sources vides</dt>
+              <dd>{sourceHealth.emptySources}</dd>
             </div>
           </dl>
         </aside>
@@ -175,12 +186,20 @@ function App() {
             <h2>Sources publiques</h2>
           </div>
           <div className="source-list">
-            {sources.map((source) => (
-              <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className="source-card">
-                <span>{source.name}</span>
-                <small>{source.cadenceMinutes} min • fiabilité {source.reliability}% • live</small>
-              </a>
-            ))}
+            {sources.map((source) => {
+              const report = sourceReports.find((sourceReport) => sourceReport.sourceId === source.id);
+              const status = report?.status ?? "idle";
+              const statusLabel = status === "ok" ? "OK" : status === "empty" ? "Vide" : status === "error" ? "Erreur" : "Prêt";
+
+              return (
+                <a key={source.id} href={source.url} target="_blank" rel="noreferrer" className={`source-card source-card--${status}`}>
+                  <span>{source.name}</span>
+                  <small>{source.cadenceMinutes} min • fiabilité {source.reliability}% • {source.mode}</small>
+                  <strong>{statusLabel} • {report?.detectedDeals ?? 0} deal(s)</strong>
+                  {report?.fetchedAt ? <small>{Math.round((report.durationMs || 0) / 100) / 10}s • {formatRelativeTime(report.fetchedAt)}</small> : null}
+                </a>
+              );
+            })}
           </div>
         </aside>
 

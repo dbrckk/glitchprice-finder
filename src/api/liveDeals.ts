@@ -3,9 +3,18 @@ import { calculateConfidence } from "../utils/dealScoring";
 
 const FETCH_TIMEOUT_MS = 9000;
 const MAX_ITEMS_PER_SOURCE = 18;
+const MAX_CONCURRENT_SOURCE_FETCHES = 3;
 const MIN_DEEP_DISCOUNT_PERCENT = 70;
-const PROXY_URL = "https://api.codetabs.com/v1/proxy/";
+const MIN_PAYLOAD_CHARS = 120;
+const CORS_PROXY_BUILDERS = [
+  (url: string) => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
+  (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+];
 const PRICE_ERROR_PATTERNS = [/erreur\s+de\s+prix/i, /erreur\s+prix/i, /price\s*error/i, /glitch/i, /bug\s+prix/i];
+const DISCOUNT_PERCENT_PATTERNS = [
+  /[-−]\s*(\d{1,2})\s*%/i,
+  /(\d{1,2})\s*%\s*(?:off|de\s+remise|de\s+r[ée]duction|reduction|discount)/i,
+];
 
 type LiveSourceMode = "rss" | "html" | "markdown";
 
@@ -40,7 +49,10 @@ interface DealabsThreadPayload {
 
 export interface LiveScanResult {
   sourceId: string;
+  sourceName: string;
   deals: DealSignal[];
+  durationMs: number;
+  fetchedAt: string;
   error?: string;
 }
 
@@ -85,7 +97,7 @@ export const LIVE_FEEDS: LiveFeedSource[] = [
     id: "amazon-direct-markdown",
     name: "Amazon FR direct goldbox",
     url: "https://www.amazon.fr/gp/goldbox",
-    scrapeUrl: "https://r.jina.ai/http://r.jina.ai/http://https://www.amazon.fr/gp/goldbox",
+    scrapeUrl: "https://r.jina.ai/http://https://www.amazon.fr/gp/goldbox",
     mode: "markdown",
     category: "tech",
     fallbackCategory: "tech",
@@ -130,6 +142,30 @@ export const LIVE_FEEDS: LiveFeedSource[] = [
     minDiscountPercent: MIN_DEEP_DISCOUNT_PERCENT,
   },
   {
+    id: "boulanger-deep-rss",
+    name: "Boulanger 70%+ & erreurs",
+    url: "https://www.boulanger.com/evenement/operation",
+    feedUrl: "https://www.dealabs.com/rss?q=boulanger",
+    mode: "rss",
+    category: "tech",
+    fallbackCategory: "tech",
+    cadenceMinutes: 7,
+    reliability: 82,
+    minDiscountPercent: MIN_DEEP_DISCOUNT_PERCENT,
+  },
+  {
+    id: "rakuten-deep-rss",
+    name: "Rakuten 70%+ & erreurs",
+    url: "https://fr.shopping.rakuten.com/",
+    feedUrl: "https://www.dealabs.com/rss?q=rakuten",
+    mode: "rss",
+    category: "tech",
+    fallbackCategory: "tech",
+    cadenceMinutes: 7,
+    reliability: 80,
+    minDiscountPercent: MIN_DEEP_DISCOUNT_PERCENT,
+  },
+  {
     id: "price-error-rss",
     name: "Erreurs de prix multi-marchands",
     url: "https://www.dealabs.com/search?q=erreur%20prix",
@@ -163,10 +199,6 @@ const CATEGORY_RULES: Array<{ category: Exclude<DealCategory, "all">; patterns: 
   { category: "home", patterns: [/maison/i, /jardin/i, /bricolage/i, /cuisine/i, /meuble/i, /famille/i, /enfants/i] },
 ];
 
-function proxiedUrl(url: string) {
-  return `${PROXY_URL}?quest=${encodeURIComponent(url)}`;
-}
-
 async function fetchWithTimeout(url: string) {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -174,36 +206,67 @@ async function fetchWithTimeout(url: string) {
   try {
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.text();
+    const payload = await response.text();
+    if (payload.trim().length < MIN_PAYLOAD_CHARS) throw new Error("Réponse trop courte");
+    return payload;
   } finally {
     window.clearTimeout(timeout);
   }
 }
 
 async function fetchText(url: string): Promise<string> {
-  try {
-    return await fetchWithTimeout(proxiedUrl(url));
-  } catch {
-    // Proxy first avoids browser CORS noise. Direct fetch remains as a fallback for environments that allow it.
-    return fetchWithTimeout(url);
+  const candidates = [...CORS_PROXY_BUILDERS.map((buildProxyUrl) => buildProxyUrl(url)), url];
+  const errors: string[] = [];
+
+  for (const candidate of candidates) {
+    try {
+      return await fetchWithTimeout(candidate);
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "Erreur inconnue");
+    }
   }
+
+  throw new Error(`Source inaccessible (${errors.join(" / ")})`);
 }
 
 function textFrom(item: Element, selector: string) {
   return item.querySelector(selector)?.textContent?.trim() ?? "";
 }
 
+function stripHtml(value: string) {
+  return value.replace(/<[^>]+>/g, " ").replace(/&nbsp;|&#160;/g, " ").replace(/&amp;/g, "&").replace(/\s+/g, " ").trim();
+}
+
+function parsePrices(...values: string[]) {
+  return values.flatMap((value) =>
+    Array.from(stripHtml(value).matchAll(/(\d{1,5}(?:[\s.,]\d{2})?)\s*(?:€|eur|euro|\$)/gi))
+      .map((match) => Number(match[1].replace(/\s/g, "").replace(",", ".")))
+      .filter((price) => Number.isFinite(price) && price >= 0),
+  );
+}
+
 function parsePrice(rawPrice: string, title: string, description: string) {
-  const candidates = [rawPrice, title, description];
-  for (const candidate of candidates) {
-    const match = candidate.match(/(\d{1,5}(?:[\s.,]\d{2})?)\s*(?:€|eur|euro|\$)/i);
+  return parsePrices(rawPrice, title, description)[0] ?? 0;
+}
+
+function parseExplicitDiscountPercent(...values: string[]) {
+  const context = values.map(stripHtml).join(" ");
+  for (const pattern of DISCOUNT_PERCENT_PATTERNS) {
+    const match = context.match(pattern);
     if (!match) continue;
 
-    const value = Number(match[1].replace(/\s/g, "").replace(",", "."));
-    if (Number.isFinite(value) && value >= 0) return value;
+    const percent = Number(match[1]);
+    if (Number.isFinite(percent) && percent > 0) return Math.min(99, Math.round(percent));
   }
 
   return 0;
+}
+
+function bestReferencePrice(price: number, ...values: string[]) {
+  return Math.max(
+    0,
+    ...parsePrices(...values).filter((candidate) => candidate > price && Math.abs(candidate - price) > 0.01),
+  );
 }
 
 function parseTemperature(title: string) {
@@ -211,29 +274,52 @@ function parseTemperature(title: string) {
   return match ? Number(match[1]) : 0;
 }
 
-function parseDiscount(title: string, temperature: number, price: number, nextBestPrice: number, explicitPercentage = 0) {
-  if (explicitPercentage > 0) return Math.min(99, Math.round(explicitPercentage));
-
-  if (nextBestPrice > price && nextBestPrice > 0) {
-    return Math.min(99, Math.round(((nextBestPrice - price) / nextBestPrice) * 100));
-  }
-
-  const discountMatch = title.match(/[-−]\s*(\d{1,2})\s*%/);
-  if (discountMatch) return Math.min(99, Math.max(1, Number(discountMatch[1])));
-
-  if (/gratuit|free/i.test(title) && price === 0) return 100;
-  if (PRICE_ERROR_PATTERNS.some((pattern) => pattern.test(title))) return 90;
-  if (temperature >= 500) return 70;
-  if (temperature >= 250) return 58;
-  if (temperature >= 100) return 45;
-  if (temperature >= 30) return 32;
-  return 18;
+interface DiscountEvidence {
+  percent: number;
+  kind: "price-comparison" | "explicit-percent" | "free" | "price-error" | "none";
 }
 
-function inferReferencePrice(price: number, discountPercent: number, nextBestPrice = 0) {
+function hasPriceErrorSignal(title: string) {
+  return PRICE_ERROR_PATTERNS.some((pattern) => pattern.test(title));
+}
+
+function detectDiscount(title: string, price: number, nextBestPrice: number, explicitPercentage = 0, description = ""): DiscountEvidence {
+  const context = `${title} ${stripHtml(description)}`;
+
+  if (nextBestPrice > price && nextBestPrice > 0) {
+    return {
+      kind: "price-comparison",
+      percent: Math.min(99, Math.round(((nextBestPrice - price) / nextBestPrice) * 100)),
+    };
+  }
+
+  if (explicitPercentage > 0) {
+    return { kind: "explicit-percent", percent: Math.min(99, Math.round(explicitPercentage)) };
+  }
+
+  const parsedPercentage = parseExplicitDiscountPercent(context);
+  if (parsedPercentage > 0) {
+    return { kind: "explicit-percent", percent: parsedPercentage };
+  }
+
+  if (/gratuit|free/i.test(context) && price === 0) {
+    return { kind: "free", percent: 100 };
+  }
+
+  if (hasPriceErrorSignal(title)) {
+    return { kind: "price-error", percent: 90 };
+  }
+
+  return { kind: "none", percent: 0 };
+}
+
+function referencePriceFromEvidence(price: number, evidence: DiscountEvidence, nextBestPrice = 0) {
   if (nextBestPrice > price) return Math.round(nextBestPrice);
-  if (price <= 0) return discountPercent >= 100 ? 1 : 0;
-  return Math.round(price / (1 - Math.min(discountPercent, 95) / 100));
+  if (evidence.kind === "explicit-percent" && price > 0) {
+    return Math.round(price / (1 - Math.min(evidence.percent, 95) / 100));
+  }
+
+  return price;
 }
 
 function safeIsoDate(value: string | number | undefined) {
@@ -276,9 +362,17 @@ function buildHistory(referencePrice: number, price: number) {
   ];
 }
 
-function isDeepOpportunity(title: string, discountPercent: number, source: LiveFeedSource) {
+function isDeepOpportunity(title: string, evidence: DiscountEvidence, source: LiveFeedSource) {
   const threshold = source.minDiscountPercent ?? MIN_DEEP_DISCOUNT_PERCENT;
-  return discountPercent >= threshold || PRICE_ERROR_PATTERNS.some((pattern) => pattern.test(title));
+  return evidence.percent >= threshold || evidence.kind === "price-error" || hasPriceErrorSignal(title);
+}
+
+function evidenceFromTags(tags: string[], percent: number): DiscountEvidence {
+  const kind = ["price-comparison", "explicit-percent", "free", "price-error", "none"].find((tag) =>
+    tags.includes(tag),
+  ) as DiscountEvidence["kind"] | undefined;
+
+  return { kind: kind ?? "none", percent };
 }
 
 function dealabsImageUrl(image?: DealabsThreadPayload["mainImage"]) {
@@ -305,12 +399,15 @@ function parseFeed(xml: string, source: LiveFeedSource): DealSignal[] {
       const temperature = parseTemperature(rawTitle);
       const title = normalizeTitle(rawTitle) || rawTitle;
       const price = parsePrice(rawPrice, rawTitle, description);
-      const discountPercent = parseDiscount(rawTitle, temperature, price, 0);
-      const referencePrice = inferReferencePrice(price, discountPercent);
-      const isPriceError = PRICE_ERROR_PATTERNS.some((pattern) => pattern.test(rawTitle));
+      const nextBestPrice = bestReferencePrice(price, description, rawTitle);
+      const explicitPercentage = parseExplicitDiscountPercent(rawTitle, description);
+      const discountEvidence = detectDiscount(rawTitle, price, nextBestPrice, explicitPercentage, description);
+      const discountPercent = discountEvidence.percent;
+      const referencePrice = referencePriceFromEvidence(price, discountEvidence, nextBestPrice);
+      const isPriceError = discountEvidence.kind === "price-error" || hasPriceErrorSignal(rawTitle);
       const stock = stockFromTemperature(temperature, isPriceError);
       const category = categoryFrom(categoryLabel, rawTitle, source.fallbackCategory);
-      const verificationStatus: DealSignal["verificationStatus"] = temperature >= 80 || isPriceError ? "verified" : "tracked";
+      const verificationStatus: DealSignal["verificationStatus"] = "tracked";
       const confidenceScore = calculateConfidence({ discountPercent, stock, verificationStatus });
       const image = item.getElementsByTagName("media:thumbnail")[0]?.getAttribute("url") ??
         item.getElementsByTagName("media:content")[0]?.getAttribute("url") ??
@@ -330,13 +427,13 @@ function parseFeed(xml: string, source: LiveFeedSource): DealSignal[] {
         confidenceScore,
         detectedAt: safeIsoDate(publishedAt),
         stock,
-        tags: ["rss-backup", discountPercent >= 70 ? "70-plus" : "hot", isPriceError ? "price-error" : "", categoryLabel].filter(Boolean),
+        tags: ["rss-backup", discountEvidence.kind, discountPercent >= 70 ? "70-plus" : "", isPriceError ? "price-error" : "", categoryLabel].filter(Boolean),
         sourceId: source.id,
         verificationStatus,
         priceHistory: buildHistory(referencePrice, price),
       };
     })
-    .filter((deal) => deal.title && deal.url && deal.referencePrice > deal.price && isDeepOpportunity(deal.title, deal.discountPercent, source));
+    .filter((deal) => deal.title && deal.url && isDeepOpportunity(deal.title, evidenceFromTags(deal.tags, deal.discountPercent), source));
 }
 
 function normalizeAmazonTitle(rawText: string) {
@@ -365,13 +462,15 @@ function parseAmazonMarkdown(markdown: string, source: LiveFeedSource): DealSign
       Number(priceMatch[1].replace(",", ".")),
     );
     const price = prices[0] ?? 0;
-    const referencePrice = Math.max(...prices.slice(1), inferReferencePrice(price, discountPercent));
     const title = normalizeAmazonTitle(rawText);
-    const isPriceError = PRICE_ERROR_PATTERNS.some((pattern) => pattern.test(title));
+    const nextBestPrice = Math.max(...prices.slice(1), 0);
+    const discountEvidence: DiscountEvidence = { kind: "explicit-percent", percent: discountPercent };
+    const referencePrice = Math.max(nextBestPrice, referencePriceFromEvidence(price, discountEvidence));
+    const isPriceError = hasPriceErrorSignal(title);
 
-    if (!title || !isDeepOpportunity(title, discountPercent, source)) return null;
+    if (!title || !isDeepOpportunity(title, discountEvidence, source)) return null;
 
-    const verificationStatus: DealSignal["verificationStatus"] = isPriceError || discountPercent >= 70 ? "verified" : "tracked";
+    const verificationStatus: DealSignal["verificationStatus"] = "tracked";
     const stock = stockFromTemperature(discountPercent * 4, isPriceError);
 
     return {
@@ -388,7 +487,7 @@ function parseAmazonMarkdown(markdown: string, source: LiveFeedSource): DealSign
       confidenceScore: calculateConfidence({ discountPercent, stock, verificationStatus }),
       detectedAt: new Date().toISOString(),
       stock,
-      tags: ["scrap-amazon", "amazon-direct", discountPercent >= 70 ? "70-plus" : "", isPriceError ? "price-error" : ""].filter(Boolean),
+      tags: ["scrap-amazon", "amazon-direct", discountEvidence.kind, discountPercent >= 70 ? "70-plus" : "", isPriceError ? "price-error" : ""].filter(Boolean),
       sourceId: source.id,
       verificationStatus,
       priceHistory: buildHistory(referencePrice, price),
@@ -414,16 +513,17 @@ function dealFromThread(thread: DealabsThreadPayload, source: LiveFeedSource): D
   const nextBestPrice = Math.max(0, Number(thread.nextBestPrice ?? 0));
   const temperature = Number(thread.temperature ?? 0);
   const title = normalizeTitle(thread.title) || thread.title;
-  const discountPercent = parseDiscount(title, temperature, price, nextBestPrice, Number(thread.percentage ?? 0));
-  if (!isDeepOpportunity(title, discountPercent, source)) return null;
+  const discountEvidence = detectDiscount(title, price, nextBestPrice, Number(thread.percentage ?? 0));
+  const discountPercent = discountEvidence.percent;
+  if (!isDeepOpportunity(title, discountEvidence, source)) return null;
 
-  const referencePrice = inferReferencePrice(price, discountPercent, nextBestPrice);
-  if (referencePrice <= price && !PRICE_ERROR_PATTERNS.some((pattern) => pattern.test(title))) return null;
+  const referencePrice = referencePriceFromEvidence(price, discountEvidence, nextBestPrice);
+  if (referencePrice <= price && discountEvidence.kind !== "free" && discountEvidence.kind !== "price-error") return null;
 
   const categoryLabel = thread.mainGroup?.threadGroupName ?? "";
-  const isPriceError = PRICE_ERROR_PATTERNS.some((pattern) => pattern.test(title));
+  const isPriceError = discountEvidence.kind === "price-error" || hasPriceErrorSignal(title);
   const stock = stockFromTemperature(temperature, isPriceError);
-  const verificationStatus: DealSignal["verificationStatus"] = isPriceError || thread.isHot || thread.isTrending ? "verified" : "tracked";
+  const verificationStatus: DealSignal["verificationStatus"] = "tracked";
   const confidenceScore = calculateConfidence({ discountPercent, stock, verificationStatus });
   const merchant = thread.merchant?.merchantName || thread.linkHost || "Dealabs scrape";
   const dealUrl = thread.titleSlug
@@ -446,6 +546,7 @@ function dealFromThread(thread: DealabsThreadPayload, source: LiveFeedSource): D
     stock,
     tags: [
       "scrap-html",
+      discountEvidence.kind,
       discountPercent >= 70 ? "70-plus" : "",
       isPriceError ? "price-error" : "deep-deal",
       temperature ? `${Math.round(temperature)}deg` : "",
@@ -470,6 +571,8 @@ function parseScrapedPage(html: string, source: LiveFeedSource): DealSignal[] {
 }
 
 export async function fetchLiveFeed(source: LiveFeedSource): Promise<LiveScanResult> {
+  const startedAt = Date.now();
+
   try {
     const url = source.mode === "rss" ? source.feedUrl : source.scrapeUrl;
     if (!url) throw new Error("Source mal configurée");
@@ -481,21 +584,48 @@ export async function fetchLiveFeed(source: LiveFeedSource): Promise<LiveScanRes
         : source.mode === "markdown"
           ? parseAmazonMarkdown(payload, source)
           : parseFeed(payload, source);
-    return { sourceId: source.id, deals };
+
+    return {
+      sourceId: source.id,
+      sourceName: source.name,
+      deals,
+      durationMs: Date.now() - startedAt,
+      fetchedAt: new Date().toISOString(),
+    };
   } catch (error) {
     return {
       sourceId: source.id,
+      sourceName: source.name,
       deals: [],
+      durationMs: Date.now() - startedAt,
+      fetchedAt: new Date().toISOString(),
       error: error instanceof Error ? error.message : "Erreur inconnue",
     };
   }
 }
 
+async function mapWithConcurrency<T, R>(items: T[], limit: number, mapper: (item: T) => Promise<R>) {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  await Promise.all(
+    Array.from({ length: Math.min(limit, items.length) }, async () => {
+      while (nextIndex < items.length) {
+        const currentIndex = nextIndex;
+        nextIndex += 1;
+        results[currentIndex] = await mapper(items[currentIndex]);
+      }
+    }),
+  );
+
+  return results;
+}
+
 export async function fetchLiveDeals(sources: LiveFeedSource[] = LIVE_FEEDS): Promise<LiveScanResult[]> {
-  return Promise.all(sources.map((source) => fetchLiveFeed(source)));
+  return mapWithConcurrency(sources, MAX_CONCURRENT_SOURCE_FETCHES, fetchLiveFeed);
 }
 
 export async function verifyDealAvailability(url: string): Promise<boolean> {
   const html = await fetchText(url);
-  return html.length > 250 && !/not found|introuvable|expired|expire|indisponible/i.test(html.slice(0, 5000));
+  return html.length > 250 && !/not found|introuvable|expired|expire|indisponible|out\s*of\s*stock|unavailable/i.test(html.slice(0, 5000));
 }
